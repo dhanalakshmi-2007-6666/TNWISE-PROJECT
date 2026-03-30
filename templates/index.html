@@ -1,0 +1,965 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<title>Smart Bus Tracking</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+
+<style>
+  :root {
+    --primary: #1A2D42;
+    --primary-light: #EEF2FF;
+    --primary-mid: #2E4156;
+    --accent: #F56A00;
+    --bg: #F7F8FC;
+    --surface: #FFFFFF;
+    --surface-2: #F0F3FB;
+    --border: #DDE3F5;
+    --text-1: #0F1535;
+    --text-2: #4A537A;
+    --text-3: #8A93B8;
+    --green: #08d54c;
+    --green-bg: #EDFAF4;
+    --green-border: #B2EECF;
+    --yellow: #D48B00;
+    --yellow-bg: #FEF9EC;
+    --yellow-border: #F5D97E;
+    --red: #D63118;
+    --red-bg: #FEF0EE;
+    --red-border: #FCCAC3;
+    --shadow-sm: 0 1px 3px rgba(24,73,214,0.06), 0 1px 2px rgba(0,0,0,0.04);
+    --shadow-md: 0 4px 16px rgba(24,73,214,0.08), 0 2px 6px rgba(0,0,0,0.04);
+    --shadow-lg: 0 8px 32px rgba(24,73,214,0.12), 0 4px 12px rgba(0,0,0,0.05);
+    --radius: 16px;
+    --radius-sm: 12px;
+    --radius-lg: 16px;
+    --nav-h: 62px;
+    --font-xs: 13px;
+  --font-sm: 15px;
+  --font-md: 17px;
+  --font-lg: 20px;
+  --font-xl: 26px;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {  font-size: 18px;height: 100%; font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text-1); overflow: hidden; background: linear-gradient(135deg, #f7f8fc, #eef2ff); }
+
+  /* ─── NAVBAR ─── */
+  .navbar {
+    position: fixed; top: 0; left: 0; right: 0; height: var(--nav-h);
+    background: var(--surface); border-bottom: 1.5px solid var(--border);
+    box-shadow: var(--shadow-sm);
+    display: grid; grid-template-columns: 1fr auto 1fr;
+    align-items: center; padding: 0 28px; z-index: 900;
+    backdrop-filter: blur(10px);
+    background: rgba(255,255,255,0.8);
+  }
+  .nav-brand { display: flex; align-items: center; gap: 10px; }
+  .nav-brand .bus-icon {
+    width: 36px; height: 36px; background: var(--primary); border-radius: 10px;
+    display: flex; align-items: center; justify-content: center; font-size: 18px;
+    box-shadow: 0 2px 8px rgba(24,73,214,0.25);
+  }
+  .nav-brand-text { display: flex; flex-direction: column; }
+  .nav-brand-text .title {   font-size: 18px; font-weight: 700; color: var(--text-1); letter-spacing: -0.3px; line-height: 1; }
+  .nav-brand-text .subtitle { font-size: 11px; color: var(--text-3); font-weight: 400; margin-top: 1px; }
+  .nav-center { display: flex; align-items: center; gap: 6px; }
+  .live-dot { width: 7px; height: 7px; background: var(--green); border-radius: 50%; animation: pulse-dot 1.8s ease-in-out infinite; }
+  @keyframes pulse-dot { 0%,100%{opacity:1;transform:scale(1);}50%{opacity:0.5;transform:scale(0.85);} }
+  .live-label { font-size: 15px; font-weight: 600; color: var(--green); font-family: 'Space Mono', monospace; letter-spacing: 0.5px; }
+  .nav-right { display: flex; justify-content: flex-end; align-items: center; gap: 10px; }
+  .nav-chip { display: flex; align-items: center; gap: 6px; padding: 6px 12px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 20px;   font-size: 14px; color: var(--text-2); font-weight: 500; }
+  .btn-admin { padding: 8px 18px; background: var(--primary); color: white; border: none; border-radius: 8px; font-size: 13px; font-weight: 600; font-family: 'DM Sans', sans-serif; cursor: pointer; transition: all 0.18s; box-shadow: 0 2px 8px rgba(24,73,214,0.2); }
+  .btn-admin:hover { background: #0f1e2e; transform: translateY(-1px); }
+
+  /* ─── LAYOUT ─── */
+  .app-layout { display: grid; grid-template-columns: 300px 1fr; height: calc(100vh - var(--nav-h)); margin-top: var(--nav-h); }
+
+  /* ─── SIDEBAR ─── */
+  .sidebar { background: var(--surface); border-right: 1.5px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
+  .sidebar-header { padding: 18px 20px 14px; border-bottom: 1px solid var(--border); }
+  .sidebar-header h2 { font-size: var(--font-lg); font-weight: 700; color: var(--text-1); letter-spacing: -0.3px; }
+  .sidebar-header p { font-size: 12px; color: var(--text-3); margin-top: 2px; }
+  .sidebar-scroll { flex: 1; overflow-y: auto; padding: 16px 20px; display: flex; flex-direction: column; gap: 18px; scroll-behavior: smooth; }
+  .sidebar-scroll::-webkit-scrollbar { width: 4px; }
+  .sidebar-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+  .section-label { font-size: var(--font-xs); font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--text-3); margin-bottom: 8px; }
+
+  .input-group { display: flex; flex-direction: column; gap: 8px; }
+  .input-wrap { position: relative; }
+  .input-wrap .icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); font-size: 13px; pointer-events: none; }
+  .input-wrap input { width: 100%; padding: 9px 10px 9px 32px; background: var(--surface-2); border: 1.5px solid var(--border); border-radius: var(--radius-sm); font-size: 15px; font-family: 'DM Sans', sans-serif; color: var(--text-1); transition: all 0.15s; outline: none; }
+  .input-wrap input::placeholder { color: var(--text-3); }
+  .input-wrap input:focus { border-color: var(--primary); background: white; box-shadow: 0 0 0 3px rgba(26,45,66,0.08); }
+
+  .btn { width: 100%; padding: 9px 14px; border: none; border-radius: var(--radius-sm); font-size: 15px; font-weight: 600; font-family: 'DM Sans', sans-serif; cursor: pointer; transition: all 0.15s; display: flex; align-items: center; justify-content: center; gap: 6px; }
+  .btn-primary { background: var(--primary); color: white; box-shadow: 0 2px 6px rgba(26,45,66,0.2); position: relative;
+  overflow: hidden;}
+  .btn-primary:hover { background: #0f1e2e; transform: translateY(-1px); }
+  .btn-secondary { background: var(--primary-light); color: var(--primary); border: 1.5px solid var(--primary-mid); }
+  .btn-secondary:hover { background: #dce8ff; transform: translateY(-1px); }
+  .btn-ghost { background: var(--surface-2); color: var(--text-2); border: 1.5px solid var(--border); }
+  .btn-ghost:hover { background: var(--border); color: var(--text-1); }
+  .btn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .btn:active {
+  transform: scale(0.96);
+}
+  .status-card { background: var(--primary-light); border: 1.5px solid var(--primary-mid); border-radius: var(--radius); padding: 14px; }
+  .status-card-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .bus-badge { display: flex; align-items: center; gap: 8px; }
+  .bus-badge .icon { font-size: 20px; }
+  .bus-badge .num { font-size: 18px; font-weight: 700; color: var(--primary); font-family: 'Space Mono', monospace; }
+  .status-pill { font-size: 15px; font-weight: 700; padding: 3px 8px; border-radius: 20px; background: var(--green-bg); color: var(--green); letter-spacing: 0.3px; }
+  .status-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .status-item { background: white; border-radius: var(--radius-sm); padding: 8px 10px; border: 1px solid var(--border); }
+  .status-item .label { font-size: 10px; color: var(--text-3); font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px; }
+  .status-item .value { font-size: 18px; font-weight: 700; color: var(--text-1); font-family: 'Space Mono', monospace; }
+
+  .ai-chat-wrap { background: var(--surface-2); border: 1.5px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+  .ai-chat-header { padding: 10px 12px; background: white; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 600; color: var(--text-2); }
+  .ai-dot { width: 8px; height: 8px; background: var(--primary); border-radius: 50%; }
+  .ai-reply-box { min-height: 48px; padding: 10px 12px; font-size: 12px; color: var(--text-2); line-height: 1.5; }
+  .ai-reply-box:empty::before { content: "Ask me anything about bus routes…"; color: var(--text-3); }
+  .ai-input-row { display: flex; gap: 6px; padding: 8px; background: white; border-top: 1px solid var(--border); }
+  .ai-input-row input { flex: 1; padding: 7px 10px; background: var(--surface-2); border: 1.5px solid var(--border); border-radius: 6px; font-size: 12px; font-family: 'DM Sans', sans-serif; color: var(--text-1); outline: none; }
+  .ai-input-row input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(26,45,66,0.08); }
+  .icon-btn { width: 32px; height: 32px; border: none; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 14px; transition: all 0.15s; flex-shrink: 0; }
+  .icon-btn.send { background: var(--primary); color: white; }
+  .icon-btn.send:hover { background: #0f1e2e; }
+  .icon-btn.mic { background: var(--surface-2); color: var(--text-2); border: 1.5px solid var(--border); }
+  .icon-btn.mic:hover { background: var(--red-bg); color: var(--red); border-color: var(--red); }
+
+  .result-item { padding: 10px 12px; background: white; border: 1.5px solid var(--border); border-radius: var(--radius-sm); cursor: pointer; font-size: 15px; font-weight: 600; color: var(--primary); display: flex; align-items: center; gap: 8px; transition: all 0.2s ease; margin-bottom: 6px; }
+  .result-item:hover { border-color: var(--primary); background: var(--primary-light); transform: scale(1.02); }
+  #tripResult, #nearestResult { padding: 10px 12px; background: white; border: 1.5px solid var(--border); border-radius: var(--radius-sm); font-size: 12px; color: var(--text-2); line-height: 1.7; display: none; }
+  #tripResult:not(:empty), #nearestResult:not(:empty) { display: block; }
+
+  /* ─── MAP ─── */
+  .map-area { position: relative; }
+  #map { width: 100%; height: 100%; }
+
+  /* ─── CROWD OVERLAY GRID ─── */
+  .map-overlay {
+    position: absolute;
+    top: 16px; right: 16px;
+    z-index: 800;
+    width: 300px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  /* Top info card: bus number */
+  .overlay-bus-card {
+    background: white;
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px 16px;
+    box-shadow: var(--shadow-md);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .overlay-bus-left { display: flex; align-items: center; gap: 10px; }
+  .overlay-bus-icon { font-size: 22px; }
+  .overlay-bus-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-3); }
+  .overlay-bus-num { font-size: var(--font-xl); font-weight: 700; font-family: 'Space Mono', monospace; color: var(--text-1); line-height: 1.1; }
+  .overlay-live-badge { display: flex; align-items: center; gap: 5px; background: var(--green-bg); border: 1px solid var(--green-border); border-radius: 20px; padding: 4px 10px; }
+  .overlay-live-dot { width: 6px; height: 6px; background: var(--green); border-radius: 50%; animation: pulse-dot 1.8s infinite; }
+  .overlay-live-text { font-size: 10px; font-weight: 700; color: var(--green); font-family: 'Space Mono', monospace; letter-spacing: 0.5px; }
+
+  /* 2-column stats grid */
+  .crowd-stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .crowd-stat-card {
+    background: white;
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px 14px;
+    box-shadow: var(--shadow-sm);
+    transition: border-color 0.3s, background 0.3s;
+  }
+  .crowd-stat-card .cs-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-3); margin-bottom: 6px; }
+  .crowd-stat-card .cs-value { font-size: var(--font-lg); font-weight: 700; font-family: 'Space Mono', monospace; color: var(--text-1); line-height: 1; }
+  .crowd-stat-card .cs-sub { font-size: 11px; color: var(--text-3); margin-top: 4px; }
+
+  /* Full-width crowd level bar card */
+  .crowd-level-card {
+    background: white;
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    box-shadow: var(--shadow-sm);
+    transition: all 0.4s ease;
+  }
+  .crowd-level-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .crowd-level-title { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-3); }
+  .crowd-level-badge { font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 20px; letter-spacing: 0.2px; transition: all 0.3s; }
+
+  .crowd-bar-track { height: 8px; background: var(--surface-2); border-radius: 20px; overflow: hidden; }
+  .crowd-bar-fill {
+    height: 100%;
+    border-radius: 20px;
+    transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1), background 0.4s;
+    width: 0%;
+  }
+  .crowd-advice { font-size: 11px; color: var(--text-2); margin-top: 8px; line-height: 1.4; }
+
+  /* STATE VARIANTS */
+  .state-low .crowd-stat-card.passengers { background: var(--green-bg); border-color: var(--green-border); }
+  .state-low .crowd-stat-card.passengers .cs-value { color: var(--green); }
+  .state-low .crowd-level-card { background: var(--green-bg); border-color: var(--green-border); }
+  .state-low .crowd-bar-fill { background: var(--green); width: 25%; }
+  .state-low .crowd-level-badge { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-border); }
+
+  .state-medium .crowd-stat-card.passengers { background: var(--yellow-bg); border-color: var(--yellow-border); }
+  .state-medium .crowd-stat-card.passengers .cs-value { color: var(--yellow); }
+  .state-medium .crowd-level-card { background: var(--yellow-bg); border-color: var(--yellow-border); }
+  .state-medium .crowd-bar-fill { background: var(--yellow); width: 60%; }
+  .state-medium .crowd-level-badge { background: var(--yellow-bg); color: var(--yellow); border: 1px solid var(--yellow-border); }
+
+  .state-high .crowd-stat-card.passengers { background: var(--red-bg); border-color: var(--red-border); }
+  .state-high .crowd-stat-card.passengers .cs-value { color: var(--red); }
+  .state-high .crowd-level-card { background: var(--red-bg); border-color: var(--red-border); }
+  .state-high .crowd-bar-fill { background: var(--red); width: 92%; }
+  .state-high .crowd-level-badge { background: var(--red-bg); color: var(--red); border: 1px solid var(--red-border); }
+
+  /* ─── POPUP TOAST ─── */
+  .crowd-toast {
+    position: fixed;
+    bottom: 28px;
+    left: 50%;
+    transform: translateX(-50%) translateY(100px);
+    z-index: 1100;
+    background: white;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-lg);
+    border: 1.5px solid var(--border);
+    padding: 16px 20px;
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    min-width: 320px;
+    max-width: 420px;
+    transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s;
+    opacity: 0;
+  }
+  .crowd-toast.show {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+  }
+  .toast-icon-wrap {
+    width: 40px; height: 40px;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px;
+    flex-shrink: 0;
+  }
+  .toast-body { flex: 1; }
+  .toast-title { font-size: 13px; font-weight: 700; color: var(--text-1); margin-bottom: 3px; }
+  .toast-msg { font-size: 12px; color: var(--text-2); line-height: 1.5; }
+  .toast-close {
+    background: none; border: none; cursor: pointer;
+    color: var(--text-3); font-size: 16px; line-height: 1;
+    padding: 0 0 0 6px; align-self: flex-start;
+    transition: color 0.15s;
+  }
+  .toast-close:hover { color: var(--text-1); }
+
+  .toast-low .toast-icon-wrap { background: var(--green-bg); }
+  .toast-low { border-color: var(--green-border); }
+  .toast-medium .toast-icon-wrap { background: var(--yellow-bg); }
+  .toast-medium { border-color: var(--yellow-border); }
+  .toast-high .toast-icon-wrap { background: var(--red-bg); }
+  .toast-high { border-color: var(--red-border); }
+
+  /* ─── MODAL ─── */
+  .modal-backdrop { position: fixed; inset: 0; background: rgba(15,21,53,0.45); backdrop-filter: blur(4px); z-index: 950; display: none; align-items: center; justify-content: center; }
+  .modal-backdrop.open { display: flex; }
+  .modal { background: white; border-radius: var(--radius-lg); box-shadow: var(--shadow-lg); width: 420px; max-height: 85vh; overflow-y: auto; border: 1.5px solid var(--border); animation: modal-in 0.22s ease; }
+  @keyframes modal-in { from{opacity:0;transform:scale(0.96) translateY(8px);}to{opacity:1;transform:scale(1) translateY(0);} }
+  .modal-header { padding: 20px 24px 16px; border-bottom: 1.5px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+  .modal-header h3 { font-size: 16px; font-weight: 700; color: var(--text-1); }
+  .modal-close { width: 28px; height: 28px; border: none; background: var(--surface-2); border-radius: 6px; cursor: pointer; font-size: 14px; color: var(--text-2); display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
+  .modal-close:hover { background: var(--red-bg); color: var(--red); }
+  .modal-body { padding: 20px 24px; }
+  .modal-input { width: 100%; padding: 9px 12px; background: var(--surface-2); border: 1.5px solid var(--border); border-radius: var(--radius-sm); font-size: 13px; font-family: 'DM Sans', sans-serif; color: var(--text-1); outline: none; transition: all 0.15s; margin-top: 8px; }
+  .modal-input:focus { border-color: var(--primary); background: white; box-shadow: 0 0 0 3px rgba(26,45,66,0.08); }
+  .modal-input::placeholder { color: var(--text-3); }
+  .field-label { font-size: 11px; font-weight: 600; color: var(--text-2); margin-top: 14px; display: block; letter-spacing: 0.2px; }
+  .modal-select { width: 100%; padding: 9px 12px; background: var(--surface-2); border: 1.5px solid var(--border); border-radius: var(--radius-sm); font-size: 13px; font-family: 'DM Sans', sans-serif; color: var(--text-1); outline: none; margin-top: 8px; cursor: pointer; }
+  .stopRow { display: flex; gap: 6px; margin-top: 6px; }
+  .stopRow input { flex: 1; padding: 8px 10px; background: var(--surface-2); border: 1.5px solid var(--border); border-radius: var(--radius-sm); font-size: 12px; font-family: 'DM Sans', sans-serif; color: var(--text-1); outline: none; }
+  .modal-footer { padding: 16px 24px; border-top: 1.5px solid var(--border); display: flex; gap: 10px; justify-content: flex-end; }
+  .btn-sm { padding: 8px 16px; font-size: 13px; font-weight: 600; border-radius: 8px; border: none; cursor: pointer; font-family: 'DM Sans', sans-serif; transition: all 0.15s; }
+  .btn-sm.cancel { background: var(--surface-2); color: var(--text-2); border: 1.5px solid var(--border); }
+  .btn-sm.cancel:hover { background: var(--border); }
+  .btn-sm.confirm { background: var(--primary); color: white; }
+  .btn-sm.confirm:hover { background: #0f1e2e; }
+  .divider { height: 1px; background: var(--border); }
+  .alert-box { padding: 8px 12px; border-radius: var(--radius-sm); font-size: 12px; font-weight: 500; display: none; margin-top: 8px; }
+  .alert-box.show { display: block; }
+  .alert-box.error { background: var(--red-bg); color: var(--red); border: 1px solid var(--red-border); }
+  #google_translate_element {
+  font-size: 12px;
+}
+.star-row { display:flex; gap:6px; margin-top:8px; }
+.star-btn { font-size:26px; background:none; border:none; cursor:pointer; color:#dde3f5; transition:color 0.15s, transform 0.1s; line-height:1; }
+.star-btn:hover, .star-btn.active { color:#f59e0b; transform:scale(1.15); }
+.rating-label { font-size:11px; font-weight:600; color:var(--text-3); margin-top:4px; }
+.feedback-success { display:none; text-align:center; padding:24px 16px; }
+.feedback-success .success-icon { font-size:48px; margin-bottom:10px; }
+.feedback-success .success-title { font-size:16px; font-weight:700; color:var(--text-1); }
+.feedback-success .success-sub { font-size:12px; color:var(--text-3); margin-top:4px; }
+.gender-row { display:flex; gap:8px; margin-top:8px; }
+.gender-chip { flex:1; padding:8px 6px; border:1.5px solid var(--border); border-radius:var(--radius-sm); background:var(--surface-2); font-size:12px; font-weight:600; color:var(--text-2); cursor:pointer; text-align:center; transition:all 0.15s; font-family:'DM Sans',sans-serif; }
+.gender-chip:hover, .gender-chip.selected { border-color:var(--primary); color:var(--primary); background:var(--primary-light); }
+.sidebar, .navbar, .modal {
+  backdrop-filter: blur(12px);
+}
+* {
+  transition: all 0.2s ease-in-out;
+}
+.btn-primary::after {
+  content: "";
+  position: absolute;
+  width: 120%;
+  height: 120%;
+  background: radial-gradient(circle, rgba(255,255,255,0.3) 10%, transparent 10%);
+  top: -10%;
+  left: -10%;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+.btn-primary:hover::after {
+  opacity: 1;
+}
+.status-card,
+.crowd-stat-card,
+.crowd-level-card {
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.status-card:hover,
+.crowd-stat-card:hover,
+.crowd-level-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-lg);
+}
+input:focus, textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(245,106,0,0.2);
+}
+.map-overlay > div {
+  background: rgba(255,255,255,0.85);
+  backdrop-filter: blur(10px);
+}
+</style>
+</head>
+<body>
+
+<!-- NAVBAR -->
+
+<nav class="navbar">
+  <div class="nav-brand">
+    <div class="bus-icon">🚍</div>
+    <div class="nav-brand-text">
+      <span class="title">SmartBus Track</span>
+      <span class="subtitle">Chennai Metropolitan</span>
+    </div>
+  </div>
+  <div class="nav-center">
+    <div class="live-dot"></div>
+    <span class="live-label">LIVE</span>
+  </div>
+  <div class="nav-right">
+      <div id="google_translate_element"  style="display:🌐;"></div> 
+    <div class="nav-chip">🕐 <span id="clock">--:--</span></div>
+    <div class="nav-chip">📍 Chennai</div>
+   
+    <button class="btn-admin" onclick="openAdmin()">⚙ Admin</button>
+    <button class="btn-admin" style="background:#15803d;" onclick="openFeedback()">💬 Feedback</button>
+  </div>
+</nav>
+
+<!-- APP LAYOUT -->
+<div class="app-layout">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <h2>Bus Finder</h2>
+      <p>Search routes &amp; track in real-time</p>
+    </div>
+    <div class="sidebar-scroll">
+
+      <div>
+        <div class="section-label">🔍 Search Route</div>
+        <div class="input-group">
+          <div class="input-wrap"><span class="icon">🚌</span><input type="text" id="busSearch" placeholder="Bus number (e.g. 21A)"></div>
+          <div class="input-wrap"><span class="icon">📍</span><input type="text" id="startSearch" placeholder="Start location"></div>
+          <div class="input-wrap"><span class="icon">🏁</span><input type="text" id="destSearch" placeholder="Destination"></div>
+        </div>
+        <div style="margin-top:10px;display:flex;flex-direction:column;gap:7px;">
+          <button class="btn btn-primary" onclick="searchBus()">🔍 Search Buses</button>
+          
+            <!-- <button class="btn btn-secondary" onclick="findNearestStop()">📌 Nearest Stop</button> -->
+            <!-- <button class="btn btn-secondary" onclick="planTrip()">🗺 Plan Trip</button> -->
+             <button class="btn btn-secondary" style="width:100%;" onclick="planTrip()">
+  🗺 Plan Trip
+</button>
+         
+        </div>
+        <div id="busResults" style="margin-top:10px;"></div>
+        <div id="nearestResult" style="margin-top:8px;"></div>
+        <div id="tripResult" style="margin-top:8px;"></div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div>
+        <div class="section-label">📡 Live Tracking</div>
+        <div class="status-card">
+          <div class="status-card-top">
+            <div class="bus-badge">
+              <span class="icon">🚍</span>
+              <span class="num" id="busNo">21A</span>
+            </div>
+            <span class="status-pill">● LIVE</span>
+          </div>
+          <div class="status-grid">
+            <div class="status-item">
+              <div class="label">Status</div>
+              <div class="value" style="font-size:11px;font-family:'DM Sans',sans-serif;font-weight:700;color:var(--green);">Active</div>
+            </div>
+            <div class="status-item">
+              <div class="label">Refresh</div>
+              <div class="value">2s</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div>
+        <div class="section-label">🤖 AI Assistant</div>
+        <div class="ai-chat-wrap">
+          <div class="ai-chat-header"><div class="ai-dot"></div> Assistant ready</div>
+          <div class="ai-reply-box" id="aiReply"></div>
+          <div class="ai-input-row">
+            <input type="text" id="chatInput" placeholder="Ask about buses…">
+            <button class="icon-btn send" onclick="askAI()" title="Send">➤</button>
+            <button class="icon-btn mic" onclick="startVoice()" title="Voice">🎤</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </aside>
+
+  <!-- MAP -->
+  <main class="map-area">
+    <div id="map"></div>
+
+    <!-- CROWD OVERLAY -->
+    <div class="map-overlay" id="crowdOverlay">
+
+      <!-- Bus identity row -->
+      <div class="overlay-bus-card">
+        <div class="overlay-bus-left">
+          <span class="overlay-bus-icon">🚍</span>
+          <div>
+            <div class="overlay-bus-label">Tracking Bus</div>
+            <div class="overlay-bus-num" id="overlayBusNo">21A</div>
+          </div>
+        </div>
+        <div class="overlay-live-badge">
+          <div class="overlay-live-dot"></div>
+          <span class="overlay-live-text">LIVE</span>
+        </div>
+      </div>
+
+      <!-- 2-column stats -->
+      <div class="crowd-stats-grid" id="crowdStatsGrid">
+        <div class="crowd-stat-card passengers">
+          <div class="cs-label">Passengers</div>
+          <div class="cs-value" id="passengerValue">—</div>
+          <div class="cs-sub">On board now</div>
+        </div>
+        <div class="crowd-stat-card">
+          <div class="cs-label">Last Update</div>
+          <div class="cs-value" id="lastUpdateVal" style="font-size:15px;font-family:'DM Sans',sans-serif;">—</div>
+          <div class="cs-sub">Refresh: 2s</div>
+        </div>
+      </div>
+
+      <!-- Crowd level bar -->
+      <div class="crowd-level-card" id="crowdLevelCard">
+        <div class="crowd-level-header">
+          <span class="crowd-level-title">Crowd Level</span>
+          <span class="crowd-level-badge" id="crowdBadge">Waiting…</span>
+        </div>
+        <div class="crowd-bar-track">
+          <div class="crowd-bar-fill" id="crowdBar"></div>
+        </div>
+        <div class="crowd-advice" id="crowdAdvice">Fetching bus status…</div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<!-- CROWD POPUP TOAST -->
+<div class="crowd-toast" id="crowdToast">
+  <div class="toast-icon-wrap" id="toastIcon">🚍</div>
+  <div class="toast-body">
+    <div class="toast-title" id="toastTitle">Crowd Update</div>
+    <div class="toast-msg" id="toastMsg">—</div>
+  </div>
+  <button class="toast-close" onclick="closeToast()">✕</button>
+</div>
+
+<!-- ADMIN MODAL -->
+<div class="modal-backdrop" id="modalBackdrop" onclick="closeAdmin(event)">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div id="loginBox">
+      <div class="modal-header">
+        <h3>⚙ Admin Login</h3>
+        <button class="modal-close" onclick="closeAdmin()">✕</button>
+      </div>
+      <div class="modal-body">
+        <span class="field-label">Email Address</span>
+        <input type="email" id="email" class="modal-input" placeholder="admin@gmail.com">
+        <span class="field-label">Password</span>
+        <input type="password" id="password" class="modal-input" placeholder="••••••••">
+        <div class="alert-box error" id="loginError">Invalid credentials. Please try again.</div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-sm cancel" onclick="closeAdmin()">Cancel</button>
+        <button class="btn-sm confirm" onclick="login()">Login →</button>
+      </div>
+    </div>
+    <div id="busForm" style="display:none;">
+      <div class="modal-header">
+        <h3>🚌 Add New Bus</h3>
+        <button class="modal-close" onclick="closeAdmin()">✕</button>
+      </div>
+      <div class="modal-body">
+        <span class="field-label">Bus Type</span>
+        <select id="busType" class="modal-select"><option>MTC</option><option>Deluxe</option></select>
+        <span class="field-label">Bus Number</span>
+        <input type="text" id="busNumber" class="modal-input" placeholder="e.g. 21A, 47C">
+        <span class="field-label">Start Location</span>
+        <input type="text" id="startLocation" class="modal-input" placeholder="Starting stop name">
+        <span class="field-label">Route Stops</span>
+        <div id="stops"></div>
+        <button class="btn btn-ghost" style="margin-top:8px;font-size:12px;padding:7px;" onclick="addStop()">+ Add Stop</button>
+        <span class="field-label">Destination</span>
+        <input type="text" id="destination" class="modal-input" placeholder="Final destination">
+      </div>
+      <div class="modal-footer">
+        <button class="btn-sm cancel" onclick="closeAdmin()">Cancel</button>
+        <button class="btn-sm confirm" onclick="submitBus()">Add Bus →</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<script>
+
+/* ── CLOCK ── */
+function updateClock(){
+  const now=new Date();
+  document.getElementById('clock').textContent=now.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
+}
+updateClock(); setInterval(updateClock,1000);
+
+/* ── MAP ── */
+var map=L.map('map').setView([13.0827,80.2707],13);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);
+var busIcon=L.icon({iconUrl:"https://cdn-icons-png.flaticon.com/512/61/61231.png",iconSize:[40,40]});
+var busMarker=L.marker([13.0827,80.2707],{icon:busIcon}).addTo(map);
+let currentBus="21A"
+var userMarker=null;;
+
+navigator.geolocation.getCurrentPosition((pos)=>{
+  const lat=pos.coords.latitude,lng=pos.coords.longitude;
+  map.setView([lat,lng],15);
+  if(userMarker) map.removeLayer(userMarker);
+  userMarker=L.marker([lat,lng]).addTo(map).bindPopup("You are here").openPopup();
+});
+
+/* ── BUS UPDATE ── */
+function updateBus(){
+  fetch("/bus_location/"+currentBus).then(r=>r.json()).then(d=>{
+    var loc=[parseFloat(d.lat),parseFloat(d.lon)];
+    busMarker.setLatLng(loc);
+    document.getElementById("busNo").innerText=currentBus;
+    document.getElementById("overlayBusNo").innerText=currentBus;
+  }).catch(()=>{});
+}
+setInterval(updateBus,2000);
+
+
+/* ── SEARCH ── */
+function searchBus(){
+  let busNo=document.getElementById("busSearch").value;
+  let start=document.getElementById("startSearch").value;
+  let dest=document.getElementById("destSearch").value;
+  fetch("/search_bus",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({bus_no:busNo,start,destination:dest})})
+  .then(r=>r.json()).then(data=>{
+    let div=document.getElementById("busResults"); div.innerHTML="";
+    if(data.length===0){div.innerHTML='<div style="font-size:12px;color:var(--text-3);padding:8px 0;">No buses found.</div>';return;}
+    // data.forEach(bus=>{div.innerHTML+=`<div class="result-item" onclick="openBus('${bus.bus_no}')">🚌 Bus ${bus.bus_no} <span style="font-size:11px;color:var(--text-3);font-weight:400;">${bus.type}</span></div>`;});
+    data.forEach(bus=>{
+  div.innerHTML+=`
+    <div class="result-item" style="justify-content:space-between;">
+      <div onclick="openBus('${bus.bus_no}')" style="display:flex;align-items:center;gap:8px;flex:1;cursor:pointer;">
+        🚌 Bus ${bus.bus_no}
+        <span style="font-size:11px;color:var(--text-3);font-weight:400;">${bus.type}</span>
+      </div>
+      <a href="/bus/${bus.bus_no}" style="
+        text-decoration:none;
+        background:var(--primary);
+        color:white;
+        font-size:11px;
+        font-weight:600;
+        padding:4px 10px;
+        border-radius:6px;
+        margin-left:8px;
+        white-space:nowrap;
+        transition:background 0.15s;
+      " onmouseover="this.style.background='#0f1e2e'" onmouseout="this.style.background='var(--primary)'">
+        🗺 Track
+      </a>
+    </div>`;
+});
+  }).catch(()=>{});
+}
+
+function openBus(busNo){
+  currentBus=busNo;
+  document.getElementById("busNo").innerText=busNo;
+  document.getElementById("overlayBusNo").innerText=busNo;
+  updateBus(); updateCrowd();
+}
+
+/* ── NEAREST STOP ── */
+// function findNearestStop(){
+//   navigator.geolocation.getCurrentPosition(p=>{
+//     fetch("/nearest_stop",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({lat:p.coords.latitude,lon:p.coords.longitude})})
+//     .then(r=>r.json()).then(d=>{
+//       document.getElementById("nearestResult").innerHTML=`📌 <b>${d.stop}</b><br>Distance: ${d.distance_km} km away`;
+//     }).catch(()=>{});
+//   },err=>alert("Location error: "+err.message));
+// }
+
+/* ── PLAN TRIP ── */
+function planTrip(){
+  let start=document.getElementById("startSearch").value;
+  let dest=document.getElementById("destSearch").value;
+  fetch("/plan_trip",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({start,destination:dest})})
+  .then(r=>r.json()).then(data=>{
+    let div=document.getElementById("tripResult"); div.innerHTML="";
+    // if(data.direct.length>0){
+    //   div.innerHTML+='<b style="color:var(--primary)">🟢 Direct Buses</b><br>';
+    //   data.direct.forEach(d=>{div.innerHTML+=`Bus <b>${d.bus}</b><br>`;});
+    // }
+    if(data.direct.length>0){
+  div.innerHTML+='<b style="color:var(--primary)">🟢 Direct Buses</b><br>';
+
+  data.direct.forEach(d=>{
+    div.innerHTML+=`
+      <div style="margin-bottom:10px;padding:8px;border:1px solid var(--border);border-radius:8px;">
+        🚌 <b>Bus ${d.bus}</b><br>
+        💰 Fare: <b style="color:green;">₹${d.fare}</b><br>
+        📏 Distance: ${d.distance} km<br>
+        ⏱ Time: ${d.est_mins} mins
+      </div>
+    `;
+  });
+}
+     if(data.transfer.length>0){
+      data.transfer.forEach(t=>{
+  div.innerHTML+=`
+    <div style="margin-bottom:10px;padding:8px;border:1px solid var(--border);border-radius:8px;">
+      🚌 <b>${t.bus1}</b> → 🔁 <i>${t.transfer}</i> → 🚌 <b>${t.bus2}</b><br>
+      💰 Total Fare: <b style="color:green;">₹${t.total_fare}</b><br>
+      📏 Distance: ${t.distance} km<br>
+      ⏱ Time: ${t.est_mins} mins
+    </div>
+  `;
+});
+    //   div.innerHTML+='<br><b style="color:var(--accent)">🔁 Transfer Routes</b><br>';
+    //   data.transfer.forEach(t=>{div.innerHTML+=`Bus <b>${t.bus1}</b> → Change at <i>${t.transfer}</i> → Bus <b>${t.bus2}</b><br>`;});
+ }
+
+    if(!data.direct.length&&!data.transfer.length) div.innerHTML="No buses available.";
+  }).catch(()=>{});
+}
+
+/* ── ADMIN ── */
+function openAdmin(){document.getElementById("modalBackdrop").classList.add("open");}
+function closeAdmin(e){if(!e||e.target===document.getElementById("modalBackdrop"))document.getElementById("modalBackdrop").classList.remove("open");}
+function login(){
+  var email=document.getElementById("email").value,pass=document.getElementById("password").value,err=document.getElementById("loginError");
+  if(email==="admin@gmail.com"&&pass==="1234"){err.classList.remove("show");document.getElementById("loginBox").style.display="none";document.getElementById("busForm").style.display="block";}
+  else err.classList.add("show");
+}
+var stopCount=0;
+function addStop(){
+  stopCount++;
+  var div=document.createElement("div");div.className="stopRow";
+  div.innerHTML=`<input type="text" class="stopName" placeholder="Stop ${stopCount} name">`;
+  document.getElementById("stops").appendChild(div);
+}
+async function submitBus(){
+  let busNo=document.getElementById("busNumber").value,busType=document.getElementById("busType").value,startLocation=document.getElementById("startLocation").value,destination=document.getElementById("destination").value;
+  let stopInputs=document.querySelectorAll(".stopName"),stops=[];
+  for(let input of stopInputs){
+    let stopName=input.value;
+    let geo=await fetch("https://nominatim.openstreetmap.org/search?format=json&q="+encodeURIComponent(stopName));
+    let geoData=await geo.json();
+    if(geoData.length>0)stops.push({name:stopName,lat:parseFloat(geoData[0].lat),lon:parseFloat(geoData[0].lon)});
+  }
+  fetch("/add_bus",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({type:busType,busNo,start:startLocation,stops,destination})})
+  .then(r=>r.json()).then(()=>{closeAdmin();alert("Bus added successfully!");}).catch(()=>{});
+}
+
+/* ── VOICE / AI ── */
+function startVoice(){
+  if(!window.webkitSpeechRecognition){alert("Voice not supported.");return;}
+  const r=new webkitSpeechRecognition();r.lang="en-IN";
+  r.onresult=e=>{document.getElementById("chatInput").value=e.results[0][0].transcript;askAI();};
+  r.start();
+}
+function askAI(){
+  let msg=document.getElementById("chatInput").value,replyEl=document.getElementById("aiReply");
+  replyEl.textContent="Thinking…";
+  fetch("/askAi",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({message:msg})})
+  .then(r=>r.json()).then(d=>{replyEl.textContent=d.reply;}).catch(()=>{replyEl.textContent="Unable to reach AI.";});
+}
+
+/* ── USER LOCATION ── */
+function setCurrentLocation(){
+  navigator.geolocation.getCurrentPosition(p=>{
+    let lat=p.coords.latitude,lon=p.coords.longitude;
+    var ui=L.icon({iconUrl:"https://cdn-icons-png.flaticon.com/512/64/64113.png",iconSize:[35,35]});
+    L.marker([lat,lon],{icon:ui}).addTo(map).bindPopup("📍 You are here").openPopup();
+    map.setView([lat,lon],14);
+    fetch("https://nominatim.openstreetmap.org/reverse?format=json&lat="+lat+"&lon="+lon)
+    .then(r=>r.json()).then(d=>{document.getElementById("startSearch").value=d.address.suburb||d.address.city||d.display_name;}).catch(()=>{});
+  },()=>{});
+}
+setCurrentLocation();
+
+/* ── TOAST SYSTEM ── */
+let toastTimer=null;
+let lastCrowdLevel=null;
+
+const crowdConfig={
+  Low:{
+    stateClass:"state-low",
+    badge:"🟢 Low",
+    advice:"Bus is comfortable — great time to board.",
+    toastClass:"toast-low",
+    toastIcon:"🟢",
+    toastTitle:"Bus is Comfortable",
+    toastMsg:"Crowd level is LOW. This is a great time to board Bus {BUS}. Enjoy a comfortable ride!",
+    showToast: true
+  },
+  Medium:{
+    stateClass:"state-medium",
+    badge:"🟡 Medium",
+    advice:"Moderate crowd — travel is possible but may be slightly busy.",
+    toastClass:"toast-medium",
+    toastIcon:"🟡",
+    toastTitle:"Moderate Crowd",
+    toastMsg:"Bus {BUS} has a MEDIUM crowd level. You can still board, but expect it to be somewhat busy.",
+    showToast: true
+  },
+  High:{
+    stateClass:"state-high",
+    badge:"🔴 High",
+    advice:"Bus is crowded — consider waiting for the next bus or an alternate route.",
+    toastClass:"toast-high",
+    toastIcon:"🔴",
+    toastTitle:"Bus is Crowded!",
+    toastMsg:"Bus {BUS} is HIGHLY crowded. If your trip is not urgent, consider waiting for the next bus or an alternate route.",
+    showToast: true
+  }
+};
+
+function showCrowdToast(crowd,busNo){
+  const cfg=crowdConfig[crowd];
+  if(!cfg||!cfg.showToast) return;
+  const toast=document.getElementById("crowdToast");
+  // remove old state classes
+  toast.classList.remove("toast-low","toast-medium","toast-high");
+  toast.classList.add(cfg.toastClass);
+  document.getElementById("toastIcon").textContent=cfg.toastIcon;
+  document.getElementById("toastTitle").textContent=cfg.toastTitle;
+  document.getElementById("toastMsg").textContent=cfg.toastMsg.replace("{BUS}",busNo);
+  toast.classList.add("show");
+  if(toastTimer) clearTimeout(toastTimer);
+  toastTimer=setTimeout(closeToast,5000);
+}
+
+function closeToast(){
+  document.getElementById("crowdToast").classList.remove("show");
+}
+
+/* ── CROWD UPDATE ── */
+function updateCrowd(){
+  fetch("/bus_status/"+currentBus).then(r=>r.json()).then(data=>{
+    let crowd=data.status,people=data.passenger_count;
+    const grid=document.getElementById("crowdStatsGrid");
+    const levelCard=document.getElementById("crowdLevelCard");
+    const now=new Date();
+    const timeStr=now.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+
+    // Update values
+    document.getElementById("passengerValue").textContent=people;
+    document.getElementById("lastUpdateVal").textContent=timeStr;
+
+    const cfg=crowdConfig[crowd]||{stateClass:"",badge:crowd,advice:"",toastClass:"",toastIcon:"🚍",toastTitle:"Update",toastMsg:"",showToast:false};
+
+    // Apply state class to grid + bar card
+    grid.className="crowd-stats-grid "+cfg.stateClass;
+    levelCard.className="crowd-level-card "+cfg.stateClass;
+
+    document.getElementById("crowdBadge").textContent=cfg.badge;
+    document.getElementById("crowdAdvice").textContent=cfg.advice;
+
+    // Show popup only when level CHANGES
+    if(crowd!==lastCrowdLevel){
+      lastCrowdLevel=crowd;
+      showCrowdToast(crowd,currentBus);
+    }
+
+  }).catch(()=>{});
+}
+setInterval(updateCrowd,2000);
+
+</script>
+<script>
+function googleTranslateElementInit() {
+  new google.translate.TranslateElement(
+    {
+      pageLanguage: 'en',
+      includedLanguages: 'en,ta,hi,te,ml',
+      layout: google.translate.TranslateElement.InlineLayout.SIMPLE
+    },
+    'google_translate_element'
+  );
+}
+</script>
+
+<script src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
+<!-- FEEDBACK MODAL -->
+<div class="modal-backdrop" id="feedbackBackdrop" onclick="closeFeedback(event)">
+  <div class="modal" onclick="event.stopPropagation()" style="width:460px;">
+    <div id="feedbackFormView">
+      <div class="modal-header">
+        <h3>💬 Share Your Feedback</h3>
+        <button class="modal-close" onclick="closeFeedback()">✕</button>
+      </div>
+      <div class="modal-body" style="display:flex;flex-direction:column;gap:0;">
+        <span class="field-label">Your Name *</span>
+        <input type="text" id="fb_name" class="modal-input" placeholder="e.g. Arjun Kumar">
+        <span class="field-label">Gender</span>
+        <div class="gender-row">
+          <button class="gender-chip" onclick="selectGender('Male')">👨 Male</button>
+          <button class="gender-chip" onclick="selectGender('Female')">👩 Female</button>
+          <button class="gender-chip" onclick="selectGender('Other')">🧑 Other</button>
+        </div>
+        <input type="hidden" id="fb_gender" value="">
+        <span class="field-label">Your Location</span>
+        <input type="text" id="fb_location" class="modal-input" placeholder="e.g. Avadi, Chennai">
+        <span class="field-label">Rating *</span>
+        <div class="star-row" id="starRow">
+          <button class="star-btn" onclick="setRating(1)" data-val="1">★</button>
+          <button class="star-btn" onclick="setRating(2)" data-val="2">★</button>
+          <button class="star-btn" onclick="setRating(3)" data-val="3">★</button>
+          <button class="star-btn" onclick="setRating(4)" data-val="4">★</button>
+          <button class="star-btn" onclick="setRating(5)" data-val="5">★</button>
+        </div>
+        <div class="rating-label" id="ratingLabel">Click a star to rate</div>
+        <input type="hidden" id="fb_rating" value="0">
+        <span class="field-label">Comments</span>
+        <textarea id="fb_comment" class="modal-input" placeholder="Tell us about your experience…" style="min-height:80px;resize:vertical;"></textarea>
+        <div class="alert-box error" id="fbError">Please fill in your name and select a rating.</div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-sm cancel" onclick="closeFeedback()">Cancel</button>
+        <button class="btn-sm confirm" onclick="submitFeedback()">Submit →</button>
+      </div>
+    </div>
+    <div class="feedback-success" id="feedbackSuccess">
+      <div class="success-icon">🎉</div>
+      <div class="success-title">Thank you for your feedback!</div>
+      <div class="success-sub">Your response helps us improve SmartBus Track.</div>
+      <button class="btn-sm confirm" style="margin-top:18px;" onclick="closeFeedback()">Close</button>
+    </div>
+  </div>
+</div>
+
+<script>
+function openFeedback(){
+  document.getElementById('feedbackBackdrop').classList.add('open');
+  document.getElementById('feedbackFormView').style.display='block';
+  document.getElementById('feedbackSuccess').style.display='none';
+  ['fb_name','fb_location','fb_comment'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('fb_rating').value='0';
+  document.getElementById('fb_gender').value='';
+  document.getElementById('ratingLabel').textContent='Click a star to rate';
+  document.querySelectorAll('.star-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.gender-chip').forEach(c=>c.classList.remove('selected'));
+  document.getElementById('fbError').classList.remove('show');
+}
+function closeFeedback(e){
+  if(!e||e.target===document.getElementById('feedbackBackdrop'))
+    document.getElementById('feedbackBackdrop').classList.remove('open');
+}
+function selectGender(g){
+  document.getElementById('fb_gender').value=g;
+  document.querySelectorAll('.gender-chip').forEach(c=>{
+    c.classList.toggle('selected', c.textContent.includes(g));
+  });
+}
+const ratingLabels=['','😞 Poor','😐 Fair','🙂 Good','😊 Very Good','🤩 Excellent'];
+function setRating(val){
+  document.getElementById('fb_rating').value=val;
+  document.getElementById('ratingLabel').textContent=ratingLabels[val];
+  document.querySelectorAll('.star-btn').forEach(b=>{
+    b.classList.toggle('active', parseInt(b.getAttribute('data-val'))<=val);
+  });
+}
+function submitFeedback(){
+  const name=document.getElementById('fb_name').value.trim();
+  const rating=parseInt(document.getElementById('fb_rating').value);
+  const err=document.getElementById('fbError');
+  if(!name||!rating){ err.classList.add('show'); return; }
+  err.classList.remove('show');
+  fetch('/submit_feedback',{
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({
+      name, gender:document.getElementById('fb_gender').value,
+      location:document.getElementById('fb_location').value.trim(),
+      rating, comment:document.getElementById('fb_comment').value.trim()
+    })
+  }).then(r=>r.json()).then(()=>{
+    document.getElementById('feedbackFormView').style.display='none';
+    document.getElementById('feedbackSuccess').style.display='block';
+  }).catch(()=>{ err.textContent='Submission failed. Try again.'; err.classList.add('show'); });
+}
+</script>
+</body>
+</html>
