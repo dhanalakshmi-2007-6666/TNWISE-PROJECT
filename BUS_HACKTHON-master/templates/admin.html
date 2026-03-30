@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+
+<title>Admin Panel</title>
+
+<style>
+
+body{
+font-family:Segoe UI;
+background:#f0f4ff;
+padding:30px;
+}
+
+.container{
+background:white;
+padding:25px;
+width:400px;
+margin:auto;
+border-radius:10px;
+box-shadow:0 0 10px rgba(0,0,0,0.2);
+}
+
+input,select{
+width:100%;
+padding:8px;
+margin-top:8px;
+border-radius:5px;
+border:1px solid #ccc;
+}
+
+button{
+margin-top:10px;
+padding:10px;
+width:100%;
+background:#1a73e8;
+color:white;
+border:none;
+border-radius:5px;
+cursor:pointer;
+}
+
+.stopRow{
+display:flex;
+gap:5px;
+margin-top:5px;
+}
+
+.stopRow input{
+flex:1;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div class="container">
+
+<h2>Add Bus Route</h2>
+
+<select id="busType">
+<option>MTC</option>
+<option>Deluxe</option>
+</select>
+
+<input type="text" id="busNumber" placeholder="Bus Number">
+
+<input type="text" id="startLocation" placeholder="Start Location">
+
+<h3>Stops</h3>
+
+<div id="stops"></div>
+
+<button onclick="addStop()">Add Stop</button>
+
+<input type="text" id="destination" placeholder="Destination">
+
+<button onclick="submitBus()">Submit Bus</button>
+
+</div>
+
+<script>
+
+var stopCount=0;
+
+function addStop(){
+
+stopCount++;
+
+var div=document.createElement("div");
+div.className="stopRow";
+
+div.innerHTML=`
+<input type="text" placeholder="Stop Name">
+<input type="text" placeholder="Latitude">
+<input type="text" placeholder="Longitude">
+`;
+
+document.getElementById("stops").appendChild(div);
+
+}
+
+function submitBus(){
+
+let busNo=document.getElementById("busNumber").value;
+let busType=document.getElementById("busType").value;
+
+let stopRows=document.querySelectorAll("#stops .stopRow");
+
+let stops=[];
+
+stopRows.forEach(row=>{
+
+let inputs=row.querySelectorAll("input");
+
+stops.push({
+name:inputs[0].value,
+lat:parseFloat(inputs[1].value),
+lon:parseFloat(inputs[2].value)
+});
+
+});
+
+fetch("/add_bus",{
+method:"POST",
+headers:{
+"Content-Type":"application/json"
+},
+body:JSON.stringify({
+type:busType,
+busNo:busNo,
+start:document.getElementById("startLocation").value,
+stops:stops,
+destination:document.getElementById("destination").value
+})
+})
+.then(res=>res.json())
+.then(data=>{
+alert("Bus Added Successfully");
+});
+
+}
+
+</script>
+
+</body>
+</html>

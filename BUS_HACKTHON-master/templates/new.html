@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+
+<meta charset="UTF-8">
+<title>Smart Bus Tracker</title>
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+
+<style>
+
+body{
+margin:0;
+font-family:'Segoe UI',sans-serif;
+background:#f4f5f7;
+}
+
+/* HEADER */
+
+.header{
+
+background:#f1d7a8;
+padding:18px;
+display:flex;
+justify-content:space-between;
+align-items:center;
+font-weight:bold;
+font-size:20px;
+
+}
+
+.location{
+
+background:white;
+padding:8px 15px;
+border-radius:20px;
+font-size:14px;
+box-shadow:0 2px 5px rgba(0,0,0,0.1);
+
+}
+
+/* SEARCH */
+
+.search-box{
+
+margin:15px;
+background:white;
+padding:14px;
+border-radius:18px;
+box-shadow:0 3px 10px rgba(0,0,0,0.08);
+color:#777;
+
+}
+
+/* QUICK ROUTES */
+
+.quick-routes{
+
+display:flex;
+gap:10px;
+padding:0 15px;
+margin-bottom:20px;
+
+}
+
+.route{
+
+background:white;
+padding:10px 15px;
+border-radius:12px;
+font-size:14px;
+box-shadow:0 3px 8px rgba(0,0,0,0.08);
+
+}
+
+/* SECTION TITLE */
+
+.section{
+
+padding:0 15px;
+margin-top:10px;
+
+}
+
+.section-title{
+
+font-weight:bold;
+font-size:18px;
+
+}
+
+.see{
+
+color:#ff8800;
+font-size:14px;
+
+}
+
+/* BUS STOP CARD */
+
+.stop-card{
+
+background:white;
+margin:15px;
+padding:18px;
+border-radius:15px;
+
+box-shadow:0 5px 12px rgba(0,0,0,0.1);
+
+}
+
+.stop-top{
+
+display:flex;
+justify-content:space-between;
+align-items:center;
+margin-bottom:10px;
+
+}
+
+.walk{
+
+background:#eee;
+padding:6px 12px;
+border-radius:20px;
+font-size:13px;
+
+}
+
+.stop-bottom{
+
+display:flex;
+justify-content:space-between;
+margin-top:10px;
+
+}
+
+.bus{
+
+font-weight:bold;
+font-size:16px;
+
+}
+
+.dest{
+
+color:#777;
+font-size:14px;
+
+}
+
+/* MAP */
+
+.map-section{
+
+margin-top:20px;
+padding:0 15px;
+
+}
+
+#map{
+
+height:250px;
+border-radius:15px;
+box-shadow:0 4px 12px rgba(0,0,0,0.15);
+
+}
+
+</style>
+
+</head>
+
+<body>
+    <button onclick="getUserLocation()" 
+style="
+position:fixed;
+bottom:80px;
+right:20px;
+background:#ff8800;
+color:white;
+border:none;
+padding:12px;
+border-radius:50%;
+font-size:18px;
+cursor:pointer;
+">
+📍
+</button>
+
+<!-- HEADER -->
+
+<div class="header">
+
+<div>🚌 CHALO</div>
+
+<div class="location">📍 Chennai</div>
+
+</div>
+
+<!-- SEARCH -->
+
+<div class="search-box">
+
+🔍 Find and track your bus
+
+</div>
+
+<!-- QUICK ROUTES -->
+
+<div class="quick-routes">
+
+<div class="route">70J → Tambaram</div>
+
+<div class="route">66 → Tambaram</div>
+
+</div>
+
+<!-- NEAREST BUS STOP -->
+
+<div class="section">
+
+<div class="section-title">
+Nearest bus stop
+<span class="see" style="float:right;">See all stops →</span>
+</div>
+
+</div>
+
+<div class="stop-card">
+
+<div class="stop-top">
+
+<div>
+<strong>Padi Kuppam</strong>
+</div>
+
+<div class="walk">
+🚶 3 min away
+</div>
+
+</div>
+
+<hr>
+
+<div class="stop-bottom">
+
+<div>
+
+<div class="bus">7K</div>
+
+<div class="dest">To Island Ground</div>
+
+</div>
+
+<div>
+
+02:34 PM
+
+</div>
+
+</div>
+
+</div>
+
+<!-- MAP SECTION -->
+
+<div class="map-section">
+
+<div class="section-title">Buses around you</div>
+
+<br>
+
+<div id="map"></div>
+
+</div>
+
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<script>
+    var userIcon = L.icon({
+iconUrl: "https://cdn-icons-png.flaticon.com/512/64/64113.png",
+iconSize: [30,30]
+});
+
+var map = L.map('map').setView([13.0827,80.2707],13);
+
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+maxZoom:19
+}).addTo(map);
+function getUserLocation(){
+
+if(navigator.geolocation){
+
+navigator.geolocation.watchPosition(function(position){
+
+var lat = position.coords.latitude;
+var lon = position.coords.longitude;
+
+var userLocation = [lat, lon];
+
+map.setView(userLocation, 15);
+
+if(window.userMarker){
+userMarker.setLatLng(userLocation);
+}
+else{
+window.userMarker = L.marker(userLocation,{icon:userIcon})
+.addTo(map)
+.bindPopup("You are here")
+.openPopup();
+}
+
+});
+
+}
+else{
+alert("Geolocation not supported by your browser");
+}
+
+}
+
+getUserLocation();
+
+/* BUS ICON */
+
+var busIcon = L.icon({
+iconUrl:"https://cdn-icons-png.flaticon.com/512/61/61231.png",
+iconSize:[35,35]
+});
+
+/* ROUTE */
+
+var route = [
+
+[13.0827,80.2707],
+[13.0839,80.2725],
+[13.0850,80.2740],
+[13.0862,80.2760],
+[13.0877,80.2785]
+
+];
+
+/* DRAW ROUTE */
+
+L.polyline(route,{
+color:"blue",
+weight:4
+}).addTo(map);
+
+/* BUS MARKER */
+
+var bus = L.marker(route[0],{icon:busIcon}).addTo(map);
+
+/* BUS ANIMATION */
+
+var i=0;
+
+function moveBus(){
+
+if(i < route.length){
+
+bus.setLatLng(route[i]);
+
+map.panTo(route[i]);
+
+i++;
+
+setTimeout(moveBus,2000);
+
+}
+
+}
+
+moveBus();
+
+</script>
+
+</body>
+</html>

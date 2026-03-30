@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<title>Driver Bus Panel</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+
+<style>
+  :root {
+    --primary: #6B21E8;
+    --primary-light: #F3EEFF;
+    --primary-mid: #D8BFFF;
+    --primary-dark: #5018C0;
+    --bg: #FAF8FF;
+    --surface: #FFFFFF;
+    --surface-2: #F3EEFF;
+    --border: #E4D8FF;
+    --text-1: #1A0A35;
+    --text-2: #4A3870;
+    --text-3: #9B89C4;
+    --green: #16A05A;
+    --green-bg: #EDFAF4;
+    --green-border: #B2EECF;
+    --yellow: #D48B00;
+    --yellow-bg: #FEF9EC;
+    --yellow-border: #F5D97E;
+    --red: #D63118;
+    --red-bg: #FEF0EE;
+    --red-border: #FCCAC3;
+    --shadow-sm: 0 1px 4px rgba(107,33,232,0.08);
+    --shadow-md: 0 4px 16px rgba(107,33,232,0.12);
+    --radius: 14px;
+    --radius-sm: 10px;
+    --nav-h: 56px;
+    --tab-h: 60px;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    height: 100%;
+    width: 100%;
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text-1);
+    overflow: hidden;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* ── NAVBAR ── */
+  .navbar {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    height: var(--nav-h);
+    background: var(--surface);
+    border-bottom: 1.5px solid var(--border);
+    box-shadow: var(--shadow-sm);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 16px;
+    z-index: 900;
+  }
+
+  .nav-brand { display: flex; align-items: center; gap: 9px; }
+  .nav-bus-icon {
+    width: 32px; height: 32px;
+    background: var(--primary);
+    border-radius: 9px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+    box-shadow: 0 2px 8px rgba(107,33,232,0.3);
+  }
+  .nav-title { font-size: 14px; font-weight: 700; color: var(--text-1); }
+  .nav-subtitle { font-size: 10px; color: var(--text-3); }
+
+  .nav-right { display: flex; align-items: center; gap: 8px; }
+
+  .live-badge {
+    display: flex; align-items: center; gap: 5px;
+    background: var(--green-bg);
+    border: 1px solid var(--green-border);
+    border-radius: 20px;
+    padding: 4px 10px;
+  }
+  .live-dot {
+    width: 6px; height: 6px;
+    background: var(--green);
+    border-radius: 50%;
+    animation: pulse 1.8s infinite;
+  }
+  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1);}50%{opacity:0.5;transform:scale(0.8);} }
+  .live-text { font-size: 10px; font-weight: 700; color: var(--green); font-family: 'Space Mono', monospace; }
+
+  .nav-bus-badge {
+    background: var(--primary-light);
+    border: 1.5px solid var(--primary-mid);
+    border-radius: 20px;
+    padding: 4px 10px;
+    font-size: 11px; font-weight: 700;
+    color: var(--primary);
+    font-family: 'Space Mono', monospace;
+  }
+
+  /* ── MAIN SCROLL AREA ── */
+  .scroll-area {
+    position: fixed;
+    top: var(--nav-h);
+    bottom: var(--tab-h);
+    left: 0; right: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .scroll-area::-webkit-scrollbar { display: none; }
+
+  /* ── TAB PAGES ── */
+  .tab-page { display: none; padding: 16px; flex-direction: column; gap: 14px; }
+  .tab-page.active { display: flex; }
+
+  /* ── BOTTOM TAB BAR ── */
+  .tab-bar {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    height: var(--tab-h);
+    background: var(--surface);
+    border-top: 1.5px solid var(--border);
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    z-index: 900;
+    box-shadow: 0 -2px 12px rgba(107,33,232,0.08);
+  }
+
+  .tab-btn {
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 3px;
+    background: none; border: none;
+    cursor: pointer;
+    transition: all 0.18s;
+    padding: 8px 0;
+    font-family: 'DM Sans', sans-serif;
+    position: relative;
+  }
+
+  .tab-btn .tab-icon { font-size: 20px; transition: transform 0.18s; }
+  .tab-btn .tab-label { font-size: 10px; font-weight: 600; color: var(--text-3); letter-spacing: 0.3px; }
+
+  .tab-btn.active .tab-label { color: var(--primary); }
+  .tab-btn.active .tab-icon { transform: translateY(-2px); }
+  .tab-btn.active::after {
+    content: '';
+    position: absolute;
+    top: 0; left: 25%; right: 25%;
+    height: 3px;
+    background: var(--primary);
+    border-radius: 0 0 3px 3px;
+  }
+
+  /* ── CARDS ── */
+  .card {
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .card-header {
+    padding: 13px 15px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .card-header-left { display: flex; align-items: center; gap: 9px; }
+  .card-icon {
+    width: 32px; height: 32px;
+    background: var(--primary-light);
+    border-radius: 9px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 15px;
+  }
+  .card-title { font-size: 13px; font-weight: 700; color: var(--text-1); }
+  .card-sub { font-size: 10px; color: var(--text-3); margin-top: 1px; }
+  .card-body { padding: 15px; }
+
+  /* ── PILL BADGES ── */
+  .pill {
+    font-size: 10px; font-weight: 700; padding: 3px 9px;
+    border-radius: 20px; letter-spacing: 0.3px;
+  }
+  .pill-waiting { background: var(--yellow-bg); color: var(--yellow); border: 1px solid var(--yellow-border); }
+  .pill-active  { background: var(--green-bg);  color: var(--green);  border: 1px solid var(--green-border); }
+  .pill-offline { background: var(--surface-2); color: var(--text-3); border: 1px solid var(--border); }
+
+  /* ── INPUT ── */
+  .input-wrap { position: relative; }
+  .input-wrap .icon { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); font-size: 14px; pointer-events: none; }
+  .input-wrap input {
+    width: 100%; padding: 11px 12px 11px 36px;
+    background: var(--surface-2); border: 1.5px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: 14px; font-family: 'DM Sans', sans-serif; color: var(--text-1);
+    outline: none; transition: border-color 0.15s, box-shadow 0.15s;
+    -webkit-appearance: none;
+  }
+  .input-wrap input:focus { border-color: var(--primary); background: white; box-shadow: 0 0 0 3px rgba(107,33,232,0.10); }
+  .input-wrap input::placeholder { color: var(--text-3); }
+
+  /* ── BUTTONS ── */
+  .btn {
+    width: 100%; padding: 13px 16px;
+    border: none; border-radius: var(--radius-sm);
+    font-size: 14px; font-weight: 600; font-family: 'DM Sans', sans-serif;
+    cursor: pointer; transition: all 0.15s;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    -webkit-appearance: none;
+    touch-action: manipulation;
+  }
+  .btn:active { transform: scale(0.97); }
+  .btn-primary { background: var(--primary); color: white; box-shadow: 0 3px 10px rgba(107,33,232,0.25); }
+  .btn-primary:active { background: var(--primary-dark); }
+  .btn-secondary { background: var(--primary-light); color: var(--primary); border: 1.5px solid var(--primary-mid); }
+  .btn-capture { background: var(--primary); color: white; box-shadow: 0 3px 10px rgba(107,33,232,0.25); font-size: 15px; padding: 15px; }
+
+  /* ── GPS COORD GRID ── */
+  .coord-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .coord-item { background: var(--surface-2); border: 1.5px solid var(--border); border-radius: var(--radius-sm); padding: 10px 12px; }
+  .coord-item .c-label { font-size: 10px; font-weight: 600; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+  .coord-item .c-value { font-size: 13px; font-weight: 700; color: var(--text-1); font-family: 'Space Mono', monospace; }
+
+  /* ── STAT CARDS ── */
+  .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .stat-card {
+    background: var(--surface-2); border: 1.5px solid var(--border);
+    border-radius: var(--radius-sm); padding: 14px;
+    display: flex; flex-direction: column; gap: 4px;
+    transition: background 0.3s, border-color 0.3s;
+  }
+  .stat-card .s-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-3); }
+  .stat-card .s-value { font-size: 28px; font-weight: 700; font-family: 'Space Mono', monospace; color: var(--text-1); line-height: 1.1; }
+  .stat-card .s-sub { font-size: 11px; color: var(--text-3); }
+  .stat-card.green { background: var(--green-bg); border-color: var(--green-border); }
+  .stat-card.green .s-value { color: var(--green); }
+  .stat-card.yellow { background: var(--yellow-bg); border-color: var(--yellow-border); }
+  .stat-card.yellow .s-value { color: var(--yellow); }
+  .stat-card.red { background: var(--red-bg); border-color: var(--red-border); }
+  .stat-card.red .s-value { color: var(--red); }
+
+  /* ── VIDEO ── */
+  .video-wrap {
+    background: #0d0d1a;
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    aspect-ratio: 4/3;
+    display: flex; align-items: center; justify-content: center;
+    position: relative;
+  }
+  .video-wrap video { width: 100%; height: 100%; object-fit: cover; display: none; }
+  .video-wrap video.active { display: block; }
+  .video-placeholder { display: flex; flex-direction: column; align-items: center; gap: 8px; color: #555; }
+  .video-placeholder .ph-icon { font-size: 40px; opacity: 0.4; }
+  .video-placeholder .ph-text { font-size: 12px; }
+
+  /* ── CROWD RESULT BAR ── */
+  .crowd-bar-track { height: 10px; background: var(--surface-2); border-radius: 20px; overflow: hidden; margin-top: 10px; }
+  .crowd-bar-fill { height: 100%; border-radius: 20px; transition: width 0.6s cubic-bezier(0.4,0,0.2,1), background 0.4s; width: 0%; background: var(--primary); }
+
+  /* ── SESSION ROW ── */
+  .session-row {
+    display: flex; gap: 10px;
+  }
+  .session-item {
+    flex: 1; background: var(--surface-2); border: 1.5px solid var(--border);
+    border-radius: var(--radius-sm); padding: 12px;
+    display: flex; flex-direction: column; gap: 3px;
+  }
+  .session-item .si-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-3); }
+  .session-item .si-value { font-size: 22px; font-weight: 700; font-family: 'Space Mono', monospace; color: var(--primary); }
+
+  /* ── RESULT ROW ── */
+  .result-toast {
+    display: flex; align-items: center; gap: 10px;
+    background: var(--surface); border: 1.5px solid var(--border);
+    border-radius: var(--radius-sm); padding: 12px 14px;
+    font-size: 13px; font-weight: 600; color: var(--text-2);
+    transition: all 0.3s;
+  }
+
+  /* ── SECTION LABEL ── */
+  .section-label {
+    font-size: 10px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 1px; color: var(--text-3); margin-bottom: 6px;
+  }
+
+  .gap-8 { display: flex; flex-direction: column; gap: 8px; }
+</style>
+</head>
+
+<body>
+
+<!-- NAVBAR -->
+<nav class="navbar">
+  <div class="nav-brand">
+    <div class="nav-bus-icon">🚌</div>
+    <div>
+      <div class="nav-title">Driver Panel</div>
+      <div class="nav-subtitle">SmartBus Track</div>
+    </div>
+  </div>
+  <div class="nav-right">
+    <div class="live-badge">
+      <div class="live-dot"></div>
+      <span class="live-text">LIVE</span>
+    </div>
+    <div class="nav-bus-badge" id="navBusNo">21A</div>
+  </div>
+</nav>
+
+<!-- SCROLL AREA -->
+<div class="scroll-area">
+
+  <!-- ── TAB 1: GPS ── -->
+  <div class="tab-page active" id="tab-gps">
+
+    <div class="card">
+      <div class="card-header">
+        <div class="card-header-left">
+          <div class="card-icon">🔢</div>
+          <div>
+            <div class="card-title">Bus Identity</div>
+            <div class="card-sub">Enter your bus number</div>
+          </div>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="input-wrap">
+          <span class="icon">🚌</span>
+          <input type="text" id="busNo" placeholder="Bus Number (e.g. 21A)" value="21A" oninput="updateBusLabel()">
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="card-header-left">
+          <div class="card-icon">📡</div>
+          <div>
+            <div class="card-title">GPS Tracking</div>
+            <div class="card-sub">Live location broadcast</div>
+          </div>
+        </div>
+        <span class="pill pill-waiting" id="gpsPill">WAITING</span>
+      </div>
+      <div class="card-body gap-8">
+        <div class="coord-grid">
+          <div class="coord-item">
+            <div class="c-label">Latitude</div>
+            <div class="c-value" id="latVal">—</div>
+          </div>
+          <div class="coord-item">
+            <div class="c-label">Longitude</div>
+            <div class="c-value" id="lonVal">—</div>
+          </div>
+        </div>
+        <button class="btn btn-primary" onclick="startTracking()">📡 Start GPS Tracking</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="card-header-left">
+          <div class="card-icon">📊</div>
+          <div>
+            <div class="card-title">Session Stats</div>
+            <div class="card-sub">Current tracking session</div>
+          </div>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="session-row">
+          <div class="session-item">
+            <div class="si-label">GPS Updates</div>
+            <div class="si-value" id="gpsCount">0</div>
+          </div>
+          <div class="session-item">
+            <div class="si-label">Total Scans</div>
+            <div class="si-value" id="scanCount">0</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ── TAB 2: CAMERA ── -->
+  <div class="tab-page" id="tab-camera">
+
+    <div class="card">
+      <div class="card-header">
+        <div class="card-header-left">
+          <div class="card-icon">📷</div>
+          <div>
+            <div class="card-title">Camera Feed</div>
+            <div class="card-sub">Live passenger view</div>
+          </div>
+        </div>
+        <span class="pill pill-offline" id="camPill">OFFLINE</span>
+      </div>
+      <div class="card-body gap-8">
+        <div class="video-wrap" id="videoWrap">
+          <video id="preview" autoplay muted playsinline></video>
+          <div class="video-placeholder" id="videoPlaceholder">
+            <span class="ph-icon">📷</span>
+            <span class="ph-text">Camera not started</span>
+          </div>
+        </div>
+        <button class="btn btn-secondary" onclick="startCamera()">📷 Start Camera</button>
+        <button class="btn btn-capture" onclick="captureFrame()">⚡ Capture &amp; Count Passengers</button>
+      </div>
+    </div>
+
+    <div class="result-toast" id="resultToast">
+      <span>📊</span>
+      <span id="resultText">No scan yet — capture a frame to begin</span>
+    </div>
+
+  </div>
+
+  <!-- ── TAB 3: CROWD ── -->
+  <div class="tab-page" id="tab-crowd">
+
+    <div class="card">
+      <div class="card-header">
+        <div class="card-header-left">
+          <div class="card-icon">👥</div>
+          <div>
+            <div class="card-title">Passenger Count</div>
+            <div class="card-sub">AI-powered detection result</div>
+          </div>
+        </div>
+      </div>
+      <div class="card-body gap-8">
+        <div class="stat-grid">
+          <div class="stat-card" id="countCard">
+            <div class="s-label">Passengers</div>
+            <div class="s-value" id="countValue">—</div>
+            <div class="s-sub">Detected</div>
+          </div>
+          <div class="stat-card" id="scansCard">
+            <div class="s-label">Scans</div>
+            <div class="s-value" id="scanCount2">0</div>
+            <div class="s-sub">This session</div>
+          </div>
+        </div>
+
+        <div class="card" style="box-shadow:none;">
+          <div class="card-body">
+            <div class="section-label">Crowd Level</div>
+            <div style="display:flex;align-items:center;justify-content:space-between;">
+              <span id="crowdValue" style="font-size:18px;font-weight:700;color:var(--text-1);">Waiting…</span>
+              <span class="pill pill-waiting" id="crowdPill">—</span>
+            </div>
+            <div class="crowd-bar-track">
+              <div class="crowd-bar-fill" id="crowdBar"></div>
+            </div>
+            <div style="font-size:12px;color:var(--text-3);margin-top:8px;" id="crowdHint">Capture a frame to analyse crowd level.</div>
+          </div>
+        </div>
+
+        <div class="stat-grid">
+          <div class="stat-card green">
+            <div class="s-label">GPS Sent</div>
+            <div class="s-value" id="gpsCount2">0</div>
+            <div class="s-sub">Updates</div>
+          </div>
+          <div class="stat-card" id="lastCountCard">
+            <div class="s-label">Last Count</div>
+            <div class="s-value" id="lastCount">—</div>
+            <div class="s-sub">Passengers</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+
+<!-- BOTTOM TAB BAR -->
+<nav class="tab-bar">
+  <button class="tab-btn active" id="btn-gps" onclick="switchTab('gps')">
+    <span class="tab-icon">📡</span>
+    <span class="tab-label">GPS</span>
+  </button>
+  <button class="tab-btn" id="btn-camera" onclick="switchTab('camera')">
+    <span class="tab-icon">📷</span>
+    <span class="tab-label">Camera</span>
+  </button>
+  <button class="tab-btn" id="btn-crowd" onclick="switchTab('crowd')">
+    <span class="tab-icon">👥</span>
+    <span class="tab-label">Crowd</span>
+  </button>
+</nav>
+
+<script>
+  /* ── CLOCK in navbar (optional small) ── */
+  /* ── TAB SWITCHING ── */
+  function switchTab(name){
+    document.querySelectorAll('.tab-page').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('tab-'+name).classList.add('active');
+    document.getElementById('btn-'+name).classList.add('active');
+  }
+
+  /* ── BUS LABEL ── */
+  function updateBusLabel(){
+    const v = document.getElementById("busNo").value || "—";
+    document.getElementById("navBusNo").textContent = v;
+  }
+
+  let stream;
+  let gpsUpdates = 0;
+  let scansDone  = 0;
+
+  /* ── GPS ── */
+  function startTracking(){
+    const busNo = document.getElementById("busNo").value;
+    if(!navigator.geolocation){ alert("GPS not supported"); return; }
+
+    const pill = document.getElementById("gpsPill");
+    pill.textContent = "ACTIVE";
+    pill.className = "pill pill-active";
+
+    navigator.geolocation.watchPosition((pos) => {
+      const lat = pos.coords.latitude;
+      const lon = pos.coords.longitude;
+      document.getElementById("latVal").textContent  = lat.toFixed(5);
+      document.getElementById("lonVal").textContent  = lon.toFixed(5);
+      gpsUpdates++;
+      document.getElementById("gpsCount").textContent  = gpsUpdates;
+      document.getElementById("gpsCount2").textContent = gpsUpdates;
+
+      fetch("/update_location", {
+        method: "POST",
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify({bus_no: busNo, lat, lon})
+      }).catch(() => {});
+
+    }, () => {}, { enableHighAccuracy: true });
+  }
+
+  /* ── CAMERA ── */
+  async function startCamera(){
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
+    } catch(e) {
+      stream = await navigator.mediaDevices.getUserMedia({ video: true });
+    }
+    const vid = document.getElementById("preview");
+    vid.srcObject = stream;
+    vid.classList.add("active");
+    document.getElementById("videoPlaceholder").style.display = "none";
+    const pill = document.getElementById("camPill");
+    pill.textContent = "LIVE";
+    pill.className = "pill pill-active";
+  }
+
+  /* ── CAPTURE ── */
+  function captureFrame(){
+    const video = document.getElementById("preview");
+    if(!video.srcObject){ alert("Start the camera first."); return; }
+
+    const canvas = document.createElement("canvas");
+    canvas.width  = video.videoWidth;
+    canvas.height = video.videoHeight;
+    canvas.getContext("2d").drawImage(video, 0, 0);
+
+    canvas.toBlob(async function(blob){
+      const busNo    = document.getElementById("busNo").value;
+      const formData = new FormData();
+      formData.append("bus_no", busNo);
+      formData.append("image", blob, "frame.jpg");
+
+      const res  = await fetch("/update_occupancy", { method: "POST", body: formData });
+      const data = await res.json();
+
+      scansDone++;
+      document.getElementById("scanCount").textContent  = scansDone;
+      document.getElementById("scanCount2").textContent = scansDone;
+      document.getElementById("countValue").textContent = data.passenger_count;
+      document.getElementById("lastCount").textContent  = data.passenger_count;
+      document.getElementById("resultText").textContent =
+        `${data.passenger_count} passengers — ${data.status}`;
+
+      const crowd = data.status;
+      const countCard = document.getElementById("countCard");
+      countCard.className = "stat-card";
+      const crowdBar  = document.getElementById("crowdBar");
+      const crowdPill = document.getElementById("crowdPill");
+      const lastCard  = document.getElementById("lastCountCard");
+      lastCard.className = "stat-card";
+
+      const cfg = {
+        Low:    { cls:"green",  bar:"25%",  barColor:"var(--green)",  pill:"🟢 Low",    hint:"Bus is comfortable — great time to board." },
+        Medium: { cls:"yellow", bar:"60%",  barColor:"var(--yellow)", pill:"🟡 Medium", hint:"Moderate crowd — may be slightly busy." },
+        High:   { cls:"red",    bar:"92%",  barColor:"var(--red)",    pill:"🔴 High",   hint:"Bus is crowded — consider waiting." },
+      }[crowd] || { cls:"", bar:"0%", barColor:"var(--primary)", pill:crowd, hint:"" };
+
+      countCard.classList.add(cfg.cls);
+      lastCard.classList.add(cfg.cls);
+      crowdBar.style.width    = cfg.bar;
+      crowdBar.style.background = cfg.barColor;
+      crowdPill.textContent   = cfg.pill;
+      crowdPill.className     = "pill pill-" + (crowd==="Low"?"active": crowd==="Medium"?"waiting":"offline");
+      document.getElementById("crowdValue").textContent = cfg.pill;
+      document.getElementById("crowdHint").textContent  = cfg.hint;
+
+      // Auto-switch to crowd tab to show result
+      switchTab('crowd');
+
+    }, "image/jpeg");
+  }
+</script>
+</body>
+</html>

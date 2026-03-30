@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<body>
+
+<h2>GPS Test</h2>
+<button onclick="getLocation()">Get Location</button>
+
+<p id="demo"></p>
+
+<script>
+function getLocation() {
+
+navigator.geolocation.getCurrentPosition(function(position){
+
+let lat = position.coords.latitude
+let lon = position.coords.longitude
+
+document.getElementById("demo").innerHTML = lat + "," + lon
+
+})
+
+}
+</script>
+
+</body>
+</html>

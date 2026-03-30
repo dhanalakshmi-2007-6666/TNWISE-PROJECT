@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Bus {{ bus_no }} — Track Route</title>
+
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.css"/>
+  <script src="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.js"></script>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap');
+
+    :root {
+      --bg:       #f4f6fb;
+      --surface:  #ffffff;
+      --surface2: #f0f2f8;
+      --border:   #dde1ef;
+      --shadow:   rgba(99,102,241,0.10);
+
+      --purple:       #6d28d9;
+      --purple-mid:   #7c3aed;
+      --purple-light: #8b5cf6;
+      --purple-glow:  rgba(109,40,217,0.15);
+      --purple-dim:   rgba(109,40,217,0.07);
+
+      --teal:  #0369a1;
+      --rose:  #be123c;
+      --amber: #b45309;
+      --green: #15803d;
+
+      --text:    #1a1a2e;
+      --text-2:  #374151;
+      --muted:   #6b7280;
+      --muted-2: #9ca3af;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* ── TOP BAR ── */
+    .topbar {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      box-shadow: 0 1px 6px var(--shadow);
+      padding: 10px 20px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex-shrink: 0;
+      z-index: 1000;
+    }
+
+    .back-btn {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      padding: 5px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 12px;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+    .back-btn:hover {
+      border-color: var(--purple);
+      color: var(--purple);
+      background: var(--purple-dim);
+    }
+
+    .bus-badge {
+      background: var(--purple);
+      color: #fff;
+      font-weight: 800;
+      font-size: 16px;
+      padding: 5px 14px;
+      border-radius: 8px;
+      font-family: 'Space Mono', monospace;
+      letter-spacing: 1px;
+      box-shadow: 0 2px 12px var(--purple-glow);
+    }
+
+    .route-label {
+      font-size: 13px;
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .route-label .from  { color: var(--teal); font-weight: 700; }
+    .route-label .to    { color: var(--rose); font-weight: 700; }
+    .route-label .arrow { color: var(--muted-2); font-size: 14px; }
+
+    .type-badge {
+      margin-left: auto;
+      background: var(--purple-dim);
+      color: var(--purple);
+      border: 1px solid rgba(109,40,217,0.2);
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+    }
+
+    /* ── MAIN ── */
+    .main {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    /* ── SIDEBAR ── */
+    .sidebar {
+      width: 300px;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      box-shadow: 2px 0 8px var(--shadow);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      flex-shrink: 0;
+      z-index: 500;
+    }
+
+    /* Route card */
+    .route-card {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 16px 18px;
+      flex-shrink: 0;
+    }
+
+    .route-card-title {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1.2px;
+      color: var(--purple);
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .route-card-title::before {
+      content: '';
+      display: inline-block;
+      width: 8px; height: 2px;
+      background: var(--purple);
+      border-radius: 1px;
+    }
+
+    /* Origin / Destination */
+    .od-wrap { position: relative; padding-left: 24px; }
+    .od-line {
+      position: absolute;
+      left: 6px; top: 16px;
+      width: 2px; height: calc(100% - 24px);
+      background: linear-gradient(to bottom, var(--teal), var(--rose));
+      opacity: 0.4;
+    }
+    .od-icon {
+      position: absolute; left: 0;
+      width: 14px; height: 14px;
+      border-radius: 50%; flex-shrink: 0;
+    }
+    .od-icon.origin { background: var(--teal); top: 4px; box-shadow: 0 0 0 3px rgba(3,105,161,0.15); }
+    .od-icon.dest   { background: var(--rose); bottom: 4px; top: auto; box-shadow: 0 0 0 3px rgba(190,18,60,0.15); }
+
+    .od-text {
+      font-size: 13px; font-weight: 600;
+      color: var(--text-2);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      max-width: 220px;
+    }
+    .od-sublabel { font-size: 10px; color: var(--muted); margin-top: 1px; }
+
+    .route-stats {
+      display: flex; gap: 16px;
+      margin-top: 14px; padding-top: 12px;
+      border-top: 1px solid var(--border);
+    }
+    .rs-item { display: flex; flex-direction: column; gap: 2px; }
+    .rs-label { font-size: 9px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--muted); font-weight: 700; }
+    .rs-value { font-size: 14px; font-weight: 700; font-family: 'Space Mono', monospace; color: var(--purple); }
+
+    /* Loading dots */
+    .loading-state {
+      display: flex; align-items: center; gap: 6px;
+      padding: 10px 0 0; font-size: 11px; color: var(--muted);
+    }
+    .ld { width: 5px; height: 5px; background: var(--purple); border-radius: 50%; animation: ldpulse 1.1s ease-in-out infinite; }
+    .ld:nth-child(2) { animation-delay: 0.18s; }
+    .ld:nth-child(3) { animation-delay: 0.36s; }
+    @keyframes ldpulse {
+      0%,100% { opacity: 0.2; transform: scale(0.8); }
+      50%      { opacity: 1;   transform: scale(1.2); }
+    }
+
+    /* Text breadcrumb */
+    .text-route {
+      background: var(--surface2);
+      border-bottom: 1px solid var(--border);
+      padding: 10px 18px;
+      flex-shrink: 0;
+    }
+    .text-route-label {
+      font-size: 9px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 1px;
+      color: var(--purple); margin-bottom: 6px;
+    }
+    .text-route-flow {
+      display: flex; align-items: center;
+      flex-wrap: wrap; gap: 0; line-height: 1.9;
+    }
+    .tr-stop { font-size: 11px; font-weight: 600; white-space: nowrap; }
+    .tr-stop.start { color: var(--teal); }
+    .tr-stop.stop  { color: var(--text-2); }
+    .tr-stop.end   { color: var(--rose); }
+    .tr-arrow { color: var(--muted-2); font-size: 9px; margin: 0 3px; }
+
+    /* Section header */
+    .section-header {
+      padding: 10px 18px 8px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface2);
+      display: flex; align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+    .sh-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.2px; color: var(--muted); }
+    .sh-pill {
+      background: var(--purple-dim);
+      color: var(--purple);
+      border: 1px solid rgba(109,40,217,0.2);
+      border-radius: 20px;
+      font-size: 11px;
+      font-family: 'Space Mono', monospace;
+      padding: 2px 8px;
+    }
+
+    /* Stop list */
+    .stops-list { overflow-y: auto; flex: 1; padding: 4px 0; }
+    .stops-list::-webkit-scrollbar { width: 3px; }
+    .stops-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    .stop-item {
+      display: flex; align-items: flex-start; gap: 10px;
+      padding: 9px 18px; cursor: pointer; transition: background 0.15s;
+      border-bottom: 1px solid transparent;
+    }
+    .stop-item:hover { background: var(--purple-dim); }
+    .stop-item.active {
+      background: rgba(109,40,217,0.08);
+      border-right: 3px solid var(--purple);
+    }
+
+    .tl-col { display: flex; flex-direction: column; align-items: center; width: 14px; flex-shrink: 0; padding-top: 3px; }
+    .tl-dot {
+      width: 11px; height: 11px; border-radius: 50%;
+      border: 2px solid; background: var(--surface);
+      flex-shrink: 0; transition: transform 0.2s;
+    }
+    .stop-item:hover .tl-dot,
+    .stop-item.active .tl-dot { transform: scale(1.4); }
+    .tl-dot.start { border-color: var(--teal); background: var(--teal); }
+    .tl-dot.stop  { border-color: var(--purple-light); }
+    .tl-dot.end   { border-color: var(--rose); background: var(--rose); }
+    .tl-line {
+      width: 2px; flex: 1; min-height: 12px;
+      background: linear-gradient(to bottom, #c4b5fd, var(--border));
+      opacity: 0.5; margin-top: 2px;
+    }
+
+    .si-info { flex: 1; min-width: 0; }
+    .si-name { font-size: 12px; font-weight: 600; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .si-tag  { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; margin-top: 1px; }
+    .si-tag.start { color: var(--teal); }
+    .si-tag.stop  { color: var(--muted); }
+    .si-tag.end   { color: var(--rose); }
+    .si-idx { font-family: 'Space Mono', monospace; font-size: 10px; color: var(--muted-2); flex-shrink: 0; margin-top: 2px; }
+
+    /* ── MAP ── */
+    #map { flex: 1; z-index: 1; min-width: 0; min-height: 0; }
+
+    /* Hide LRM turn-by-turn directions panel */
+    .leaflet-routing-container { display: none !important; }
+
+    /* Popups — light theme */
+    .leaflet-popup-content-wrapper {
+      background: #ffffff !important;
+      border: 1px solid var(--border) !important;
+      border-radius: 12px !important;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.15) !important;
+      color: var(--text) !important;
+    }
+    .leaflet-popup-tip { background: #ffffff !important; }
+    .leaflet-popup-content { margin: 12px 16px !important; }
+    .pp-bus  { font-family: 'Space Mono', monospace; font-size: 10px; color: var(--muted); }
+    .pp-name { font-size: 14px; font-weight: 700; margin: 3px 0 2px; color: var(--text); }
+    .pp-kind { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+    .pp-kind.start { color: var(--teal); }
+    .pp-kind.stop  { color: var(--purple); }
+    .pp-kind.end   { color: var(--rose); }
+
+    /* ── STATS BAR ── */
+    .statsbar {
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      box-shadow: 0 -1px 6px var(--shadow);
+      padding: 8px 20px;
+      display: flex;
+      gap: 28px;
+      flex-shrink: 0;
+    }
+    .stat { display: flex; flex-direction: column; gap: 1px; }
+    .stat-label { font-size: 9px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--muted); font-weight: 700; }
+    .stat-value { font-size: 13px; font-weight: 700; font-family: 'Space Mono', monospace; }
+
+    @media (max-width: 600px) {
+      .sidebar { width: 220px; }
+      .route-label { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Flask data bridge -->
+<div id="stopsData" style="display:none;">{{ stops | tojson }}</div>
+<div id="busData" style="display:none;"
+     data-busno="{{ bus_no }}"
+     data-type="{{ type }}"
+     data-start="{{ start }}"
+     data-dest="{{ destination }}">
+</div>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <button class="back-btn" onclick="history.back()">← Back</button>
+  <div class="bus-badge">{{ bus_no }}</div>
+  <div class="route-label">
+    <span class="from">{{ start }}</span>
+    <span class="arrow">→</span>
+    <span class="to">{{ destination }}</span>
+  </div>
+  <div class="type-badge">{{ type }}</div>
+</div>
+
+<div class="main">
+
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+
+    <!-- Route Overview Card -->
+    <div class="route-card">
+      <div class="route-card-title">Route Overview</div>
+      <div class="od-wrap">
+        <div class="od-line"></div>
+        <div class="od-icon origin"></div>
+        <div style="padding: 2px 0 20px 0;">
+          <div class="od-text">{{ start }}</div>
+          <div class="od-sublabel">Starting point</div>
+        </div>
+        <div class="od-icon dest"></div>
+        <div style="padding: 2px 0;">
+          <div class="od-text">{{ destination }}</div>
+          <div class="od-sublabel">Destination</div>
+        </div>
+      </div>
+
+      <div class="route-stats">
+        <div class="rs-item">
+          <div class="rs-label">Distance</div>
+          <div class="rs-value" id="statDist">—</div>
+        </div>
+        <div class="rs-item">
+          <div class="rs-label">Est. Time</div>
+          <div class="rs-value" id="statTime">—</div>
+        </div>
+        <div class="rs-item">
+          <div class="rs-label">Stops</div>
+          <div class="rs-value" id="statStops">—</div>
+        </div>
+      </div>
+
+      <div class="loading-state" id="loadingState">
+        <div class="ld"></div><div class="ld"></div><div class="ld"></div>
+        <span>Calculating route…</span>
+      </div>
+    </div>
+
+    <!-- Full route text breadcrumb -->
+    <div class="text-route">
+      <div class="text-route-label">Full Route</div>
+      <div class="text-route-flow" id="textRouteFlow"></div>
+    </div>
+
+    <!-- Stops list -->
+    <div class="section-header">
+      <span class="sh-label">All Stops</span>
+      <span class="sh-pill" id="stopCountPill">—</span>
+    </div>
+    <div class="stops-list" id="stopsList"></div>
+  </div>
+
+  <!-- MAP -->
+  <div id="map"></div>
+</div>
+
+<!-- STATS BAR -->
+<div class="statsbar">
+  <div class="stat">
+    <div class="stat-label">Bus No</div>
+    <div class="stat-value" style="color:var(--purple)">{{ bus_no }}</div>
+  </div>
+  <div class="stat">
+    <div class="stat-label">Type</div>
+    <div class="stat-value" style="color:var(--amber);font-size:11px;margin-top:2px;">{{ type }}</div>
+  </div>
+  <div class="stat">
+    <div class="stat-label">From</div>
+    <div class="stat-value" style="color:var(--teal);font-size:11px;margin-top:2px;">{{ start }}</div>
+  </div>
+  <div class="stat">
+    <div class="stat-label">To</div>
+    <div class="stat-value" style="color:var(--rose);font-size:11px;margin-top:2px;">{{ destination }}</div>
+  </div>
+  <div class="stat">
+    <div class="stat-label">Distance</div>
+    <div class="stat-value" id="statDistBottom" style="color:var(--purple)">—</div>
+  </div>
+  <div class="stat">
+    <div class="stat-label">Est. Time</div>
+    <div class="stat-value" id="statTimeBottom" style="color:var(--purple)">—</div>
+  </div>
+</div>
+
+<script>
+// ── READ FLASK DATA ──
+const busEl      = document.getElementById('busData');
+const BUS_NO     = busEl.getAttribute('data-busno');
+const START_NAME = busEl.getAttribute('data-start');
+const DEST_NAME  = busEl.getAttribute('data-dest');
+
+let RAW_STOPS = [];
+try {
+  const raw = document.getElementById('stopsData').textContent.trim();
+  if (raw && raw !== 'None' && raw !== 'null') RAW_STOPS = JSON.parse(raw);
+} catch(e) { console.warn('Stops parse error:', e); }
+
+// Build stop array — use first/last stop coords for start/end endpoints
+const allStops = [];
+
+// Parse intermediate stops first so we can borrow their coords for endpoints
+const midStops = RAW_STOPS.map(s => ({
+  name: s.stop_name || s.name || s.location || s.location_name || String(s),
+  kind: 'stop',
+  lat:  (s.lat || s.latitude)  ? parseFloat(s.lat || s.latitude)  : null,
+  lon:  (s.lon || s.longitude || s.lng) ? parseFloat(s.lon || s.longitude || s.lng) : null
+}));
+
+// Start: use first stop's coords as approximation if no dedicated start coord
+const firstWithCoord = midStops.find(s => s.lat && s.lon);
+const lastWithCoord  = [...midStops].reverse().find(s => s.lat && s.lon);
+
+allStops.push({
+  name: START_NAME, kind: 'start',
+  lat: firstWithCoord ? firstWithCoord.lat : null,
+  lon: firstWithCoord ? firstWithCoord.lon : null
+});
+
+midStops.forEach(s => allStops.push(s));
+
+allStops.push({
+  name: DEST_NAME, kind: 'end',
+  lat: lastWithCoord ? lastWithCoord.lat : null,
+  lon: lastWithCoord ? lastWithCoord.lon : null
+});
+
+// ── MAP — light Google Maps style tile ──
+const map = L.map('map', { zoomControl: true, attributionControl: false });
+
+// OpenStreetMap Carto (bright light, closest to Google Maps look)
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  maxZoom: 19,
+  attribution: '© OpenStreetMap'
+}).addTo(map);
+
+// Attribution small and unobtrusive
+L.control.attribution({ position: 'bottomright', prefix: false }).addTo(map);
+
+setTimeout(() => map.invalidateSize(), 200);
+
+// ── MARKER ICONS ──
+const COLORS = { start: '#0369a1', stop: '#7c3aed', end: '#be123c' };
+
+function makeIcon(kind) {
+  const c = COLORS[kind];
+  const sz = kind === 'stop' ? 12 : 20;
+  const inner = kind !== 'stop'
+    ? `background:${c};`
+    : `background:#fff;border:2.5px solid ${c};`;
+  return L.divIcon({
+    className: '',
+    html: `<div style="
+      width:${sz}px;height:${sz}px;
+      ${inner}
+      border-radius:50%;
+      border:${kind !== 'stop' ? '3px solid #fff' : '2.5px solid ' + c};
+      box-shadow:0 2px 8px rgba(0,0,0,0.25);
+    "></div>`,
+    iconSize: [sz, sz], iconAnchor: [sz/2, sz/2]
+  });
+}
+
+const markerMap = {};
+
+function placeMarker(stop, index) {
+  if (!stop.lat || !stop.lon) return;
+  const m = L.marker([stop.lat, stop.lon], { icon: makeIcon(stop.kind) })
+    .addTo(map)
+    .bindPopup(`
+      <div class="pp-bus">Bus ${BUS_NO} · Stop ${index + 1}</div>
+      <div class="pp-name">${stop.name}</div>
+      <div class="pp-kind ${stop.kind}">
+        ${stop.kind === 'start' ? '● Starting Point' : stop.kind === 'end' ? '● Destination' : '○ Stop'}
+      </div>
+    `);
+  m.on('click', () => highlightStop(index));
+  markerMap[index] = m;
+}
+
+// ── GEOCODE via Nominatim (fallback only) ──
+async function geocode(name) {
+  const q = `${name}, Tamil Nadu, India`;
+  try {
+    const r = await fetch(
+      `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(q)}`,
+      { headers: { 'Accept-Language': 'en' } }
+    );
+    const d = await r.json();
+    if (d && d.length > 0) return { lat: parseFloat(d[0].lat), lon: parseFloat(d[0].lon) };
+  } catch(e) { console.warn('Geocode failed:', name, e); }
+  return null;
+}
+
+// ── MAIN INIT ──
+// Strategy: use DB coords for stops directly.
+// For start/end that lack coords, borrow from nearest stop or geocode as last resort.
+async function initRoute() {
+
+  // Step 1: Fill start coord — use first intermediate stop's coords if missing
+  const firstStop = RAW_STOPS.find(s => (s.lat || s.latitude) && (s.lon || s.longitude || s.lng));
+  const lastStop  = [...RAW_STOPS].reverse().find(s => (s.lat || s.latitude) && (s.lon || s.longitude || s.lng));
+
+  if (!allStops[0].lat && firstStop) {
+    allStops[0].lat = parseFloat(firstStop.lat || firstStop.latitude);
+    allStops[0].lon = parseFloat(firstStop.lon || firstStop.longitude || firstStop.lng);
+  }
+  if (!allStops[allStops.length-1].lat && lastStop) {
+    allStops[allStops.length-1].lat = parseFloat(lastStop.lat || lastStop.latitude);
+    allStops[allStops.length-1].lon = parseFloat(lastStop.lon || lastStop.longitude || lastStop.lng);
+  }
+
+  // Step 2: If still missing, try geocoding
+  if (!allStops[0].lat) {
+    const c = await geocode(START_NAME);
+    if (c) { allStops[0].lat = c.lat; allStops[0].lon = c.lon; }
+  }
+  if (!allStops[allStops.length-1].lat) {
+    const c = await geocode(DEST_NAME);
+    if (c) { allStops[allStops.length-1].lat = c.lat; allStops[allStops.length-1].lon = c.lon; }
+  }
+
+  // Step 3: Place all markers that have coords
+  allStops.forEach((s, i) => placeMarker(s, i));
+
+  // Step 4: Fit map to all known coords
+  const pts = allStops.filter(s => s.lat && s.lon).map(s => [s.lat, s.lon]);
+  if (pts.length > 0) map.fitBounds(L.latLngBounds(pts), { padding: [50, 50] });
+
+  // Step 5: Draw route — use ALL stops with coords as waypoints
+  const waypoints = allStops
+    .filter(s => s.lat && s.lon)
+    .map(s => L.latLng(s.lat, s.lon));
+
+  if (waypoints.length >= 2) {
+    // Draw green line immediately between dots — visible while OSRM loads
+    const instantLine = L.polyline(pts, {
+      color: '#16a34a', weight: 4, opacity: 0.6, dashArray: '8 5'
+    }).addTo(map);
+    const instantGlow = L.polyline(pts, {
+      color: '#bbf7d0', weight: 10, opacity: 0.35
+    }).addTo(map);
+
+    const rc = L.Routing.control({
+      waypoints,
+      lineOptions: {
+        styles: [
+          { color: '#bbf7d0', weight: 10, opacity: 0.7 },  // soft green halo
+          { color: '#16a34a', weight: 5,  opacity: 1.0  }  // solid green road line
+        ],
+        extendToWaypoints: true,
+        missingRouteTolerance: 0
+      },
+      createMarker: () => null,
+      addWaypoints: false,
+      draggableWaypoints: false,
+      fitSelectedRoutes: false,
+      showAlternatives: false,
+      router: L.Routing.osrmv1({
+        serviceUrl: 'https://router.project-osrm.org/route/v1',
+        timeout: 15000
+      })
+    }).addTo(map);
+
+    rc.on('routesfound', e => {
+      // Remove instant fallback — real road route is now drawn
+      map.removeLayer(instantLine);
+      map.removeLayer(instantGlow);
+      document.getElementById('loadingState').style.display = 'none';
+      const s      = e.routes[0].summary;
+      const distKm = (s.totalDistance / 1000).toFixed(1);
+      const mins   = Math.round(s.totalTime / 60);
+      const time   = mins >= 60 ? `${Math.floor(mins/60)}h ${mins%60}m` : `${mins} min`;
+
+      document.getElementById('statDist').textContent       = distKm + ' km';
+      document.getElementById('statTime').textContent       = time;
+      document.getElementById('statDistBottom').textContent = distKm + ' km';
+      document.getElementById('statTimeBottom').textContent = time;
+
+      map.fitBounds(rc.getBounds(), { padding: [50, 50] });
+    });
+
+    rc.on('routingerror', () => {
+      // OSRM failed — draw straight green lines between all dots as fallback
+      document.getElementById('loadingState').innerHTML =
+        '<span style="color:var(--amber);font-size:11px;">⚠ Road routing unavailable — showing direct path</span>';
+      L.polyline(pts, { color: '#16a34a', weight: 4, opacity: 0.85 }).addTo(map);
+      L.polyline(pts, { color: '#bbf7d0', weight: 10, opacity: 0.4 }).addTo(map);
+    });
+
+  } else {
+    document.getElementById('loadingState').innerHTML =
+      '<span style="color:var(--rose);font-size:11px;">⚠ No stop coordinates found in database</span>';
+  }
+
+  buildSidebar();
+}
+
+// ── SIDEBAR ──
+function buildSidebar() {
+  const list  = document.getElementById('stopsList');
+  const flow  = document.getElementById('textRouteFlow');
+  const total = allStops.length;
+
+  document.getElementById('statStops').textContent     = total;
+  document.getElementById('stopCountPill').textContent = total;
+
+  allStops.forEach((s, i) => {
+    const isLast = i === total - 1;
+
+    const div = document.createElement('div');
+    div.className = 'stop-item';
+    div.id = `stop-${i}`;
+    div.innerHTML = `
+      <div class="tl-col">
+        <div class="tl-dot ${s.kind}"></div>
+        ${!isLast ? '<div class="tl-line"></div>' : ''}
+      </div>
+      <div class="si-info">
+        <div class="si-name">${s.name}</div>
+        <div class="si-tag ${s.kind}">
+          ${s.kind === 'start' ? 'Start' : s.kind === 'end' ? 'Destination' : 'Stop'}
+        </div>
+      </div>
+      <div class="si-idx">${String(i+1).padStart(2,'0')}</div>
+    `;
+    div.addEventListener('click', () => {
+      if (s.lat && s.lon) {
+        map.setView([s.lat, s.lon], 15, { animate: true });
+        if (markerMap[i]) markerMap[i].openPopup();
+      }
+      highlightStop(i);
+    });
+    list.appendChild(div);
+
+    const span = document.createElement('span');
+    span.className = `tr-stop ${s.kind}`;
+    span.textContent = s.name;
+    flow.appendChild(span);
+    if (!isLast) {
+      const arr = document.createElement('span');
+      arr.className = 'tr-arrow';
+      arr.textContent = '›';
+      flow.appendChild(arr);
+    }
+  });
+}
+
+function highlightStop(idx) {
+  document.querySelectorAll('.stop-item').forEach(el => el.classList.remove('active'));
+  const el = document.getElementById(`stop-${idx}`);
+  if (el) { el.classList.add('active'); el.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }
+}
+
+initRoute();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+
+<title>AI Bus Assistant</title>
+
+<style>
+
+body{
+margin:0;
+font-family:Segoe UI;
+background:linear-gradient(135deg,#1a73e8,#4fc3f7);
+height:100vh;
+display:flex;
+justify-content:center;
+align-items:center;
+}
+
+.container{
+width:700px;
+background:white;
+padding:30px;
+border-radius:12px;
+box-shadow:0 10px 30px rgba(0,0,0,0.3);
+}
+
+.title{
+font-size:26px;
+font-weight:bold;
+color:#1a73e8;
+margin-bottom:20px;
+}
+
+.chat{
+display:flex;
+flex-direction:column;
+gap:15px;
+}
+
+.user{
+background:#e3f2fd;
+padding:12px;
+border-radius:8px;
+align-self:flex-end;
+max-width:80%;
+}
+
+.ai{
+background:#f5f5f5;
+padding:12px;
+border-radius:8px;
+max-width:80%;
+}
+
+.back{
+margin-top:20px;
+padding:10px 20px;
+background:#1a73e8;
+color:white;
+border:none;
+border-radius:6px;
+cursor:pointer;
+}
+
+.back:hover{
+background:#0f5bd1;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div class="container">
+
+<div class="title">🤖 AI Bus Assistant</div>
+
+<div class="chat">
+
+<div class="user">
+<b>You:</b><br>
+{{question}}
+</div>
+
+<div class="ai">
+<b>AI:</b><br>
+{{answer}}
+</div>
+
+</div>
+
+<button class="back" onclick="window.location.href='/'">
+⬅ Back
+</button>
+
+</div>
+
+</body>
+
+</html>
+<!-- ./cloudflared.exe tunnel --url http://localhost:5000 -->

@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+<title>Bus Details</title>
+
+<style>
+
+body{
+font-family:Segoe UI;
+margin:0;
+background:linear-gradient(135deg,white,white);
+color:black;
+}
+
+.container{
+max-width:700px;
+margin:auto;
+padding:40px;
+}
+
+.card{
+background:white;
+color:black;
+border-radius:12px;
+padding:25px;
+box-shadow:0 10px 25px rgba(0,0,0,0.2);
+animation:fadeIn 0.8s ease;
+}
+
+h1{
+text-align:center;
+}
+
+.route{
+margin-top:20px;
+}
+
+.stop{
+padding:10px;
+margin:8px 0;
+border-left:4px solid #1a73e8;
+background:#f5f7ff;
+border-radius:5px;
+animation:slideUp 0.5s ease;
+}
+
+.start{
+border-left:4px solid green;
+}
+
+.destination{
+border-left:4px solid red;
+}
+
+@keyframes fadeIn{
+from{opacity:0;transform:translateY(20px)}
+to{opacity:1;transform:translateY(0)}
+}
+
+@keyframes slideUp{
+from{opacity:0;transform:translateY(10px)}
+to{opacity:1;transform:translateY(0)}
+}
+
+.back{
+margin-top:20px;
+display:inline-block;
+padding:10px 20px;
+background:#1a73e8;
+color:white;
+text-decoration:none;
+border-radius:6px;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div class="container">
+
+<h1>🚍 Bus {{bus_no}}</h1>
+
+<div class="card">
+
+<p><b>Type:</b> {{type}}</p>
+<p><b>Start:</b> {{start}}</p>
+<p><b>Destination:</b> {{destination}}</p>
+
+<div class="route">
+
+<div class="stop start">🟢 {{start}}</div>
+
+{% for s in stops %}
+<div class="stop">📍 {{s.name}}</div>
+{% endfor %}
+
+<div class="stop destination">🔴 {{destination}}</div>
+
+</div>
+
+</div>
+
+<a class="back" href="/">⬅ Back</a>
+
+</div>
+
+</body>
+</html>
